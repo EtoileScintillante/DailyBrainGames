@@ -325,7 +325,10 @@ struct ContentView: View {
         let shape = RoundedRectangle(cornerRadius: 13)
         let minusActive = isMinusButton && isNegative
 
-        return Button(action: action) {
+        return Button(action: {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            action()
+        }) {
             Text(label)
                 .font(.system(size: isEnter ? 24 : 22, weight: .semibold, design: .rounded))
                 .frame(maxWidth: .infinity)
