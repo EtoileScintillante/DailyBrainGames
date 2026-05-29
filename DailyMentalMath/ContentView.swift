@@ -255,6 +255,11 @@ struct ContentView: View {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 5)
                         .glassEffect(.regular, in: Capsule())
+                        .overlay {
+                            if decimalsEnabled {
+                                Capsule().strokeBorder(selectedTheme.accent, lineWidth: 2)
+                            }
+                        }
                     }
                 }
 
