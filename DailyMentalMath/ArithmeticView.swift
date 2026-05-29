@@ -556,14 +556,15 @@ struct ArithmeticView: View {
             let answer = Double(Int.random(in: 2...12))
             let divisor = [0.5, 0.25, 2.0, 4.0, 5.0].randomElement()!
             let lhs = (answer * divisor * 100).rounded() / 100
-            return Question(lhs: lhs, rhs: divisor, op: .division, answer: answer)
+            if isClean(lhs, maxDP: 2) { return Question(lhs: lhs, rhs: divisor, op: .division, answer: answer) }
         } else {
             let halfPart = [0.0, 0.5].randomElement()!
             let answer = Double(Int.random(in: 1...20)) + halfPart
             let divisor = [0.2, 0.25, 0.4, 0.5, 2.0, 4.0, 8.0].randomElement()!
             let lhs = (answer * divisor * 100).rounded() / 100
-            return Question(lhs: lhs, rhs: divisor, op: .division, answer: answer)
+            if isClean(lhs, maxDP: 2) { return Question(lhs: lhs, rhs: divisor, op: .division, answer: answer) }
         }
+        return makeDivision()
     }
 
     // MARK: - Hard Decimal Generators
@@ -593,14 +594,14 @@ struct ArithmeticView: View {
                 let a = [0.5, 1.5, 2.5, 3.5, 4.5, 0.25, 0.75, 1.25, 2.25].randomElement()!
                 let b = Double(Int.random(in: 2...50))
                 let ans = (a * b * 100).rounded() / 100
-                if isClean(ans, maxDP: 2) {
+                if isClean(ans, maxDP: 3) {
                     return Question(lhs: a, rhs: b, op: .multiplication, answer: ans)
                 }
             case 1:
                 // tenths × friendly decimal — e.g., 1,4 × 2,5 = 3,5
                 let a = Double(Int.random(in: 1...25)) / 10.0
                 let b = [0.5, 1.0, 1.5, 2.0, 2.5, 0.25, 0.75].randomElement()!
-                let ans = (a * b * 100).rounded() / 100
+                let ans = (a * b * 1000).rounded() / 1000
                 if isClean(ans, maxDP: 2) {
                     return Question(lhs: a, rhs: b, op: .multiplication, answer: ans)
                 }

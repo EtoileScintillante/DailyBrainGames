@@ -38,8 +38,10 @@ struct HomeView: View {
                     icon: "ellipsis",
                     title: "Number Sequences",
                     subtitle: "Find the pattern and complete the sequence",
-                    enabled: false
-                ) {}
+                    enabled: true
+                ) {
+                    onSelect(.sequences)
+                }
             }
             .padding(.horizontal, 20)
 

@@ -110,3 +110,15 @@ struct Question {
 
     var display: String { "\(formatNum(lhs)) \(op.symbol) \(formatNum(rhs))" }
 }
+
+// MARK: - Sequence Question
+
+struct SequenceQuestion {
+    let terms: [Int?]
+    let answer: Int
+    let patternDescription: String
+
+    var display: String {
+        terms.map { $0 != nil ? "\($0!)" : "?" }.joined(separator: ", ")
+    }
+}
