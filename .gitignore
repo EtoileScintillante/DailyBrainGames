@@ -1,0 +1,31 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+xcshareddata/
+
+# User-specific Xcode files
+xcuserdata/
+*.xcuserstate
+
+# Swift Package Manager
+.build/
+
+# Playground files
+timeline.xctimeline
+playground.xcworkspace
+
+# Fastlane (if you ever use it)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# Archives
+*.xcarchive
+
+# Temporary files
+*.swp
+*.tmp
