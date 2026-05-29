@@ -615,20 +615,11 @@ struct ContentView: View {
     }
 
     func makeDecimalAddSub(isAddition: Bool, easy: Bool) -> Question {
+        let tenths = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
         if easy {
-            // Halves: 0.5, 1.5, ..., 9.5
-            let pool = Array(stride(from: 0.5, through: 9.5, by: 1.0))
-            var a = pool.randomElement()!
-            var b = pool.randomElement()!
-            while b == a { b = pool.randomElement()! }
-            if !isAddition && a < b { swap(&a, &b) }
-            let ans = isAddition ? a + b : a - b
-            return Question(lhs: a, rhs: b, op: isAddition ? .addition : .subtraction, answer: ans)
-        } else {
-            // Tenths: integer part 10...50 + one tenth
-            let tenths = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
-            let a = Double(Int.random(in: 10...50)) + tenths.randomElement()!
-            let b = Double(Int.random(in: 10...50)) + tenths.randomElement()!
+            // Tenths, integer part 1...15 — e.g. 7.4 + 3.8
+            let a = Double(Int.random(in: 1...15)) + tenths.randomElement()!
+            let b = Double(Int.random(in: 1...15)) + tenths.randomElement()!
             if isAddition {
                 let ans = ((a + b) * 10).rounded() / 10
                 return Question(lhs: a, rhs: b, op: .addition, answer: ans)
@@ -637,20 +628,33 @@ struct ContentView: View {
                 let ans = ((bigger - smaller) * 10).rounded() / 10
                 return Question(lhs: bigger, rhs: smaller, op: .subtraction, answer: ans)
             }
+        } else {
+            // Mix 1dp and 2dp operands — e.g. 12.4 + 3.75 forces mental decimal alignment
+            let twoDp = [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95]
+            let a = Double(Int.random(in: 10...99)) + tenths.randomElement()!
+            let b = Double(Int.random(in: 1...20))  + twoDp.randomElement()!
+            if isAddition {
+                let ans = ((a + b) * 100).rounded() / 100
+                return Question(lhs: a, rhs: b, op: .addition, answer: ans)
+            } else {
+                let bigger = max(a, b), smaller = min(a, b)
+                let ans = ((bigger - smaller) * 100).rounded() / 100
+                return Question(lhs: bigger, rhs: smaller, op: .subtraction, answer: ans)
+            }
         }
     }
 
     func makeDecimalMul(easy: Bool) -> Question {
         if easy {
-            // integer × half — e.g. 6 × 1.5 = 9
-            let a = Double(Int.random(in: 2...9))
-            let b = [0.5, 1.5, 2.5].randomElement()!
-            let ans = (a * b * 10).rounded() / 10
+            // integer (2...12) × friendly decimal — e.g. 7 × 0.75 = 5.25
+            let a = Double(Int.random(in: 2...12))
+            let b = [0.5, 1.5, 2.5, 0.25, 0.75].randomElement()!
+            let ans = (a * b * 100).rounded() / 100
             return Question(lhs: a, rhs: b, op: .multiplication, answer: ans)
         } else {
-            // integer × common decimal — e.g. 8 × 0.25 = 2
-            let a = Double(Int.random(in: 2...20))
-            let b = [0.1, 0.2, 0.25, 0.5, 0.75].randomElement()!
+            // integer (10...50) × friendly decimal — e.g. 24 × 1.25 = 30
+            let a = Double(Int.random(in: 10...50))
+            let b = [0.1, 0.2, 0.25, 0.5, 0.75, 1.25].randomElement()!
             let ans = (a * b * 100).rounded() / 100
             return Question(lhs: a, rhs: b, op: .multiplication, answer: ans)
         }
@@ -658,17 +662,17 @@ struct ContentView: View {
 
     func makeDecimalDiv(easy: Bool) -> Question {
         if easy {
-            // answer is always a half so the question clearly has a decimal answer
-            let answerPool: [Double] = [0.5, 1.5, 2.5, 3.5, 4.5]
-            let answer = answerPool.randomElement()!
-            let divisor = Double(Int.random(in: 2...5))
-            let lhs = (answer * divisor * 10).rounded() / 10
+            // Whole-number answer, decimal or small-int divisor — e.g. 3 ÷ 0.5 = 6
+            let answer = Double(Int.random(in: 2...12))
+            let divisor = [0.5, 0.25, 2.0, 4.0, 5.0].randomElement()!
+            let lhs = (answer * divisor * 100).rounded() / 100
             return Question(lhs: lhs, rhs: divisor, op: .division, answer: answer)
         } else {
-            let answerPool: [Double] = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 7.5, 12.5, 17.5]
-            let answer = answerPool.randomElement()!
-            let divisor = Double(Int.random(in: 2...10))
-            let lhs = (answer * divisor * 10).rounded() / 10
+            // Half-or-whole answer, wider divisor pool — e.g. 3.2 ÷ 0.4 = 8
+            let halfPart = [0.0, 0.5].randomElement()!
+            let answer = Double(Int.random(in: 1...20)) + halfPart
+            let divisor = [0.2, 0.25, 0.4, 0.5, 2.0, 4.0, 8.0].randomElement()!
+            let lhs = (answer * divisor * 100).rounded() / 100
             return Question(lhs: lhs, rhs: divisor, op: .division, answer: answer)
         }
     }
