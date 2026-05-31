@@ -35,13 +35,14 @@ struct HomeView: View {
                 }
 
                 modeCard(
-                    icon: "ellipsis",
-                    title: "Number Sequences",
-                    subtitle: "Find the pattern and complete the sequence",
+                    icon: "target",
+                    title: "Make Target",
+                    subtitle: "Combine number cards to reach the target",
                     enabled: true
                 ) {
-                    onSelect(.sequences)
+                    onSelect(.makeTarget)
                 }
+
             }
             .padding(.horizontal, 20)
 

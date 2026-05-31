@@ -8,7 +8,7 @@
 import SwiftUI
 
 enum AppScreen: Equatable {
-    case home, arithmetic, sequences
+    case home, arithmetic, makeTarget
 }
 
 struct ContentView: View {
@@ -40,8 +40,8 @@ struct ContentView: View {
                     }
                     .transition(.move(edge: .trailing))
                 }
-                if screen == .sequences {
-                    SequencesView {
+                if screen == .makeTarget {
+                    MakeTargetView {
                         withAnimation(.easeInOut(duration: 0.3)) { screen = .home }
                     }
                     .transition(.move(edge: .trailing))

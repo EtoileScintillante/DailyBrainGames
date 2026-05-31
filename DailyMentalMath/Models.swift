@@ -82,6 +82,59 @@ enum Theme: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Make Target
+
+struct MakeTargetCard: Identifiable {
+    let id: UUID
+    let value: Int
+    let expression: String
+
+    init(value: Int, expression: String? = nil) {
+        self.id = UUID()
+        self.value = value
+        self.expression = expression ?? "\(value)"
+    }
+}
+
+struct MakeTargetPuzzle {
+    let target: Int
+    let solutionExpression: String
+}
+
+enum MakeTargetDifficulty: String, CaseIterable, Identifiable {
+    case easy   = "Easy"
+    case medium = "Medium"
+    case hard   = "Hard"
+
+    var id: String { rawValue }
+
+    var cardCount: Int { 4 }
+
+    var allowedOperators: [String] {
+        switch self {
+        case .easy:   return ["+", "−"]
+        case .medium: return ["+", "−", "×"]
+        case .hard:   return ["+", "−", "×", "÷"]
+        }
+    }
+
+    var numberRange: ClosedRange<Int> {
+        switch self {
+        case .easy:   return 1...15
+        case .medium: return -20...20
+        case .hard:   return -30...30
+        }
+    }
+
+    var targetRange: ClosedRange<Int> {
+        switch self {
+        case .easy:   return 1...60
+        case .medium: return -150...150
+        case .hard:   return -200...200
+        }
+    }
+}
+
 // MARK: - Question
 
 // Formats a Double for display using comma as decimal separator, no trailing zeros
@@ -109,16 +162,4 @@ struct Question {
     }
 
     var display: String { "\(formatNum(lhs)) \(op.symbol) \(formatNum(rhs))" }
-}
-
-// MARK: - Sequence Question
-
-struct SequenceQuestion {
-    let terms: [Int?]
-    let answer: Int
-    let patternDescription: String
-
-    var display: String {
-        terms.map { $0 != nil ? "\($0!)" : "?" }.joined(separator: ", ")
-    }
 }
