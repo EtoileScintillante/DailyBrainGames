@@ -167,7 +167,7 @@ struct MakeTargetView: View {
                     .font(.system(size: 25, weight: .semibold))
                     .foregroundColor(.white.opacity(0.55))
                 Text(puzzle != nil ? "\(puzzle!.target)" : " ")
-                    .font(.system(size: 72, weight: .bold, design: .rounded))
+                    .font(.system(size: 69, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
                     .opacity(puzzle != nil ? 1 : 0)
             }
@@ -187,12 +187,12 @@ struct MakeTargetView: View {
             Spacer(minLength: 16)
 
             Text(expressionPreview)
-                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .font(.system(size: 30, weight: .medium, design: .monospaced))
                 .foregroundColor(isDivisionByZero ? Color(red: 1.0, green: 0.35, blue: 0.35) : .white.opacity(0.65))
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
                 .frame(maxWidth: .infinity)
-                .frame(height: 20)
+                .frame(height: 32)
                 .padding(.horizontal, 20)
 
             Spacer(minLength: 8)
