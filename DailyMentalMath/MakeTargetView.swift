@@ -52,7 +52,11 @@ struct MakeTargetView: View {
             if op == "÷" && b.value == 0 {
                 return "\(a.expression) ÷ 0  ✗"
             }
-            return "(\(a.expression) \(op) \(b.expression)) = \(compute(a.value, op, b.value))"
+            if difficulty.showsValues {
+                return "(\(a.expression) \(op) \(b.expression)) = \(compute(a.value, op, b.value))"
+            } else {
+                return "(\(a.expression) \(op) \(b.expression))"
+            }
         } else if let a = c1, let op = selectedOperator {
             return "\(a.expression) \(op) ?"
         } else if let a = c1, let b = c2 {
@@ -120,14 +124,10 @@ struct MakeTargetView: View {
             .padding(.top, 36)
             .padding(.bottom, 12)
 
-            HStack {
-                pickerMenu(title: difficulty.rawValue, options: MakeTargetDifficulty.allCases) { diff in
-                    difficulty = diff
-                    generateNewPuzzle()
-                }
+            pickerMenu(title: difficulty.rawValue, options: MakeTargetDifficulty.allCases) { diff in
+                difficulty = diff
+                generateNewPuzzle()
             }
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.horizontal, 16)
             .padding(.bottom, 12)
         }
     }
@@ -347,10 +347,17 @@ struct MakeTargetView: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             toggleCard(card)
         }) {
-            Text("\(card.value)")
-                .font(.system(size: 32, weight: .bold, design: .rounded))
+            Text(difficulty.showsValues ? "\(card.value)" : card.expression)
+                .font(.system(
+                    size: difficulty.showsValues ? 32 : 26,
+                    weight: .bold,
+                    design: difficulty.showsValues ? .rounded : .monospaced
+                ))
+                .minimumScaleFactor(difficulty.showsValues ? 0.8 : 0.35)
+                .lineLimit(1)
                 .foregroundColor(.white)
-                .frame(minWidth: 72)
+                .padding(.horizontal, 4)
+                .frame(maxWidth: .infinity)
                 .frame(height: 88)
         }
         .glassEffect(isSelected ? .regular.interactive(true) : .regular, in: shape)
@@ -501,9 +508,9 @@ struct MakeTargetView: View {
 
     static func generate(difficulty: MakeTargetDifficulty) -> (MakeTargetPuzzle, [Int]) {
         switch difficulty {
-        case .easy:   return generateEasy()
-        case .medium: return generateMedium()
-        case .hard:   return generateHard()
+        case .easy:          return generateEasy()
+        case .medium, .hard: return generateMedium()
+        case .expert:        return generateHard()
         }
     }
 
@@ -557,7 +564,14 @@ struct MakeTargetView: View {
 
         for _ in 0..<500 {
             let nums = Array(pool.shuffled().prefix(4))
-            let selectedOps = (0..<3).map { _ in ops.randomElement()! }
+            // Reject hands with a cancel pair (n and -n both present)
+            guard !nums.contains(where: { nums.contains(-$0) }) else { continue }
+
+            // × 40%, + 30%, − 30%
+            let selectedOps = (0..<3).map { _ -> String in
+                let r = Double.random(in: 0..<1)
+                return r < 0.4 ? "×" : (r < 0.7 ? "+" : "−")
+            }
 
             guard let v1 = applyOp(nums[0], selectedOps[0], nums[1]),
                   let v2 = applyOp(v1, selectedOps[1], nums[2]),
@@ -581,7 +595,14 @@ struct MakeTargetView: View {
 
         for _ in 0..<1000 {
             let nums = Array(pool.shuffled().prefix(4))
-            let selectedOps = (0..<3).map { _ in ops.randomElement()! }
+            // Reject hands with a cancel pair (n and -n both present)
+            guard !nums.contains(where: { nums.contains(-$0) }) else { continue }
+
+            // Require at least one × or ÷ (applyOp will still reject unclean divisions)
+            var selectedOps: [String]
+            repeat {
+                selectedOps = (0..<3).map { _ in ops.randomElement()! }
+            } while !selectedOps.contains("×") && !selectedOps.contains("÷")
 
             guard let v1 = applyOp(nums[0], selectedOps[0], nums[1]),
                   let v2 = applyOp(v1, selectedOps[1], nums[2]),

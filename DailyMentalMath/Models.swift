@@ -105,32 +105,42 @@ enum MakeTargetDifficulty: String, CaseIterable, Identifiable {
     case easy   = "Easy"
     case medium = "Medium"
     case hard   = "Hard"
+    case expert = "Expert"
 
     var id: String { rawValue }
 
     var cardCount: Int { 4 }
 
+    // Hard reuses medium's operators/range; expert reuses old hard's
     var allowedOperators: [String] {
         switch self {
-        case .easy:   return ["+", "−"]
-        case .medium: return ["+", "−", "×"]
-        case .hard:   return ["+", "−", "×", "÷"]
+        case .easy:          return ["+", "−"]
+        case .medium, .hard: return ["+", "−", "×"]
+        case .expert:        return ["+", "−", "×", "÷"]
         }
     }
 
     var numberRange: ClosedRange<Int> {
         switch self {
-        case .easy:   return 1...15
-        case .medium: return -20...20
-        case .hard:   return -30...30
+        case .easy:          return 1...15
+        case .medium, .hard: return -20...20
+        case .expert:        return -30...30
         }
     }
 
     var targetRange: ClosedRange<Int> {
         switch self {
-        case .easy:   return 1...60
-        case .medium: return -150...150
-        case .hard:   return -200...200
+        case .easy:          return 1...60
+        case .medium, .hard: return -150...150
+        case .expert:        return -200...200
+        }
+    }
+
+    // Hard and Expert hide intermediate values — only expressions are shown on cards
+    var showsValues: Bool {
+        switch self {
+        case .easy, .medium: return true
+        case .hard, .expert: return false
         }
     }
 }
