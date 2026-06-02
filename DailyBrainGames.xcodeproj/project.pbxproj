@@ -168,7 +168,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 76A059FF2FC788B80085DA4C /* Build configuration list for PBXProject "DailyMentalMath" */;
+			buildConfigurationList = 76A059FF2FC788B80085DA4C /* Build configuration list for PBXProject "DailyBrainGames" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -382,6 +382,7 @@
 				DEVELOPMENT_TEAM = XYU443AL5D;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.educational-games";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -392,7 +393,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "esma-jz.DailyMentalMath";
+				PRODUCT_BUNDLE_IDENTIFIER = "esma-jz.DailyBrainGames";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -414,6 +415,7 @@
 				DEVELOPMENT_TEAM = XYU443AL5D;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.educational-games";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -424,7 +426,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "esma-jz.DailyMentalMath";
+				PRODUCT_BUNDLE_IDENTIFIER = "esma-jz.DailyBrainGames";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -523,7 +525,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		76A059FF2FC788B80085DA4C /* Build configuration list for PBXProject "DailyMentalMath" */ = {
+		76A059FF2FC788B80085DA4C /* Build configuration list for PBXProject "DailyBrainGames" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				76A05A232FC788C20085DA4C /* Debug */,
