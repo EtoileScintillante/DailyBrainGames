@@ -43,6 +43,15 @@ struct HomeView: View {
                     onSelect(.makeTarget)
                 }
 
+                modeCard(
+                    icon: "square.grid.3x3",
+                    title: "Sequence",
+                    subtitle: "Memorise and repeat the tile sequence",
+                    enabled: true
+                ) {
+                    onSelect(.sequenceMemory)
+                }
+
             }
             .padding(.horizontal, 20)
 
