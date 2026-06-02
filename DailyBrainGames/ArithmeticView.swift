@@ -1,6 +1,6 @@
 //
 //  ArithmeticView.swift
-//  DailyMentalMath
+//  DailyBrainGames
 //
 //  Created by Esma Zuurbier on 29/05/2026.
 //
