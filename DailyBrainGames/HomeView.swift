@@ -14,14 +14,14 @@ struct HomeView: View {
     var body: some View {
         VStack(spacing: 0) {
             VStack(spacing: 8) {
-                Text("Daily Mental Math")
+                Text("Daily Brain Games")
                     .font(.system(size: 32, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
-                Text("Choose your training")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.white.opacity(0.65))
+                Text("Pick your training")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(.white.opacity(0.75))
             }
-            .padding(.top, 96)
+            .padding(.top, 76)
             .padding(.bottom, 52)
 
             VStack(spacing: 16) {
@@ -41,6 +41,15 @@ struct HomeView: View {
                     enabled: true
                 ) {
                     onSelect(.makeTarget)
+                }
+
+                modeCard(
+                    icon: "link",
+                    title: "Number Chain",
+                    subtitle: "Follow a chain of operations to find the answer or missing step",
+                    enabled: true
+                ) {
+                    onSelect(.numberChain)
                 }
 
                 modeCard(

@@ -44,7 +44,7 @@ struct ArithmeticView: View {
     }
 
     var answerDisplay: String {
-        guard !inputDigits.isEmpty else { return "_" }
+        guard !inputDigits.isEmpty else { return "?" }
         return (isNegative ? "-" : "") + inputDigits
     }
 

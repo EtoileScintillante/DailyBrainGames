@@ -58,16 +58,18 @@ enum Theme: String, CaseIterable, Identifiable {
     case purple = "Purple"
     case blue   = "Blue"
     case red    = "Red"
-    case gold   = "Gold"
+    case yellow = "Yellow"
+    case green  = "Green"
 
     var id: String { rawValue }
 
     var imageName: String {
         switch self {
-        case .purple: return "wallpaper_purple"
-        case .blue:   return "wallpaper_blue.PNG"
-        case .red:    return "wallpaper_red.PNG"
-        case .gold:   return "wallpaper_gold.PNG"
+        case .purple: return "purple.jpg"
+        case .blue:   return "blue.jpg"
+        case .red:    return "red.jpg"
+        case .yellow: return "yellow.jpg"
+        case .green:  return "green.jpg"
         }
     }
 
@@ -77,7 +79,8 @@ enum Theme: String, CaseIterable, Identifiable {
         case .purple: return Color(red: 0.70, green: 0.45, blue: 1.00)
         case .blue:   return Color(red: 0.38, green: 0.68, blue: 1.00)
         case .red:    return Color(red: 1.00, green: 0.42, blue: 0.42)
-        case .gold:   return Color(red: 1.00, green: 0.82, blue: 0.28)
+        case .yellow: return Color(red: 1.00, green: 0.82, blue: 0.28)
+        case .green:  return Color(red: 0.35, green: 0.90, blue: 0.50)
         }
     }
 }
