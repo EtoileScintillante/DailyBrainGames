@@ -35,6 +35,8 @@ struct ArithmeticView: View {
     @State private var timerActive: Bool = false
     @State private var timerEnded: Bool = false
     @State private var gameTimer: Timer? = nil
+    @State private var finalScore: Int = 0
+    @State private var finalAccuracy: Double = 0
 
     var accuracy: Double {
         guard totalAttempted > 0 else { return 0 }
@@ -46,7 +48,7 @@ struct ArithmeticView: View {
         return (isNegative ? "-" : "") + inputDigits
     }
 
-    var inputBlocked: Bool { timerEnded }
+    var inputBlocked: Bool { selectedTimerMode != .untimed && !timerActive }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -220,13 +222,13 @@ struct ArithmeticView: View {
                     Text("Time's up!")
                         .font(.system(size: 38, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
-                    Text("Score: \(score)")
+                    Text("Score: \(finalScore)")
                         .font(.system(size: 24, weight: .semibold, design: .rounded))
                         .foregroundColor(.white.opacity(0.85))
-                    Text(String(format: "Accuracy: %.0f%%", accuracy))
+                    Text(String(format: "Accuracy: %.0f%%", finalAccuracy))
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(.white.opacity(0.6))
-                    Button("Play Again") { resetGame() }
+                    Button("Close") { resetGame() }
                         .buttonStyle(GlassPlayAgainButtonStyle())
                         .padding(.top, 8)
                 }
@@ -651,8 +653,11 @@ struct ArithmeticView: View {
     }
 
     func endTimer() {
+        finalScore = score
+        finalAccuracy = accuracy
         timerActive = false; timerEnded = true
         gameTimer?.invalidate(); gameTimer = nil
+        score = 0; streak = 0; totalAttempted = 0
     }
 
     func timeString(_ s: Int) -> String { String(format: "%d:%02d", s / 60, s % 60) }

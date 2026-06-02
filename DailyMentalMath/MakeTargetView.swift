@@ -19,8 +19,25 @@ struct MakeTargetView: View {
     @State private var cardHistory: [[MakeTargetCard]] = []
     @State private var gamePhase: GamePhase = .playing
     @State private var showingHelp: Bool = false
+    @State private var selectedTimerMode: TimerMode = .untimed
+    @State private var timeRemaining: Int = 0
+    @State private var timerActive: Bool = false
+    @State private var timerEnded: Bool = false
+    @State private var gameTimer: Timer? = nil
+    @State private var score: Int = 0
+    @State private var streak: Int = 0
+    @State private var totalAttempted: Int = 0
+    @State private var finalScore: Int = 0
+    @State private var finalAccuracy: Double = 0
 
     private enum GamePhase { case playing, solved, showingSolution }
+
+    private var inputBlocked: Bool { selectedTimerMode != .untimed && !timerActive }
+
+    private var accuracy: Double {
+        guard totalAttempted > 0 else { return 0 }
+        return Double(score) / Double(totalAttempted) * 100
+    }
 
     private var isDivisionByZero: Bool {
         guard selectedOperator == "÷",
@@ -32,6 +49,7 @@ struct MakeTargetView: View {
     }
 
     private var canSubmit: Bool {
+        guard !inputBlocked else { return false }
         switch gamePhase {
         case .playing: return selectedCardIDs.count == 2 && selectedOperator != nil && !isDivisionByZero
         case .solved, .showingSolution: return true
@@ -124,12 +142,77 @@ struct MakeTargetView: View {
             .padding(.top, 36)
             .padding(.bottom, 12)
 
-            pickerMenu(title: difficulty.rawValue, options: MakeTargetDifficulty.allCases) { diff in
-                difficulty = diff
-                generateNewPuzzle()
+            HStack(spacing: 8) {
+                pickerMenu(title: difficulty.rawValue, options: MakeTargetDifficulty.allCases) { diff in
+                    difficulty = diff
+                    score = 0; streak = 0; totalAttempted = 0
+                    generateNewPuzzle()
+                }
+                pickerMenu(title: selectedTimerMode.rawValue, options: TimerMode.allCases) { mode in
+                    selectedTimerMode = mode
+                    pauseTimer()
+                    timerEnded = false
+                    if let secs = mode.seconds { timeRemaining = secs }
+                    score = 0; streak = 0; totalAttempted = 0
+                }
             }
+            .padding(.bottom, 8)
+
+            HStack(spacing: 0) {
+                statView(label: "Solved",    value: "\(score)")
+                statDivider
+                statView(label: "Streak",   value: "\(streak)")
+                statDivider
+                statView(label: "Total",    value: "\(totalAttempted)")
+                statDivider
+                statView(label: "Accuracy", value: String(format: "%.0f%%", accuracy))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16))
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
+
+            HStack {
+                if selectedTimerMode != .untimed && !timerEnded {
+                    Image(systemName: "clock")
+                        .foregroundColor(timeRemaining <= 10 ? Color(red: 1, green: 0.4, blue: 0.4) : .white.opacity(0.8))
+                    Text(timeString(timeRemaining))
+                        .font(.system(size: 18, weight: .bold, design: .monospaced))
+                        .foregroundColor(timeRemaining <= 10 ? Color(red: 1, green: 0.4, blue: 0.4) : .white)
+                        .frame(minWidth: 48, alignment: .leading)
+                }
+                Spacer()
+                if selectedTimerMode != .untimed && !timerEnded {
+                    Button(timerActive ? "Pause" : "Start") { toggleTimer() }
+                        .buttonStyle(GlassSmallButtonStyle())
+                }
+                Button("Reset") { resetPuzzle() }
+                    .buttonStyle(GlassSmallButtonStyle())
+                    .disabled(timerEnded)
+                    .opacity(timerEnded ? 0.35 : 1)
+            }
+            .padding(.horizontal, 16)
             .padding(.bottom, 12)
         }
+    }
+
+    var statDivider: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.20))
+            .frame(width: 1, height: 28)
+    }
+
+    func statView(label: String, value: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.white.opacity(0.6))
+        }
+        .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
@@ -162,46 +245,65 @@ struct MakeTargetView: View {
         VStack(spacing: 0) {
             Spacer()
 
-            VStack(spacing: 4) {
-                Text("Target")
-                    .font(.system(size: 25, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.55))
-                Text(puzzle != nil ? "\(puzzle!.target)" : " ")
-                    .font(.system(size: 69, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                    .opacity(puzzle != nil ? 1 : 0)
+            if timerEnded {
+                VStack(spacing: 12) {
+                    Text("Time's up!")
+                        .font(.system(size: 38, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                    Text("Solved: \(finalScore)")
+                        .font(.system(size: 24, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.85))
+                    Text(String(format: "Accuracy: %.0f%%", finalAccuracy))
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.white.opacity(0.6))
+                    Button("Close") { playAgain() }
+                        .buttonStyle(GlassPlayAgainButtonStyle())
+                        .padding(.top, 8)
+                }
+            } else {
+                VStack(spacing: 4) {
+                    Text("Target")
+                        .font(.system(size: 25, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.55))
+                    Text(puzzle != nil ? "\(puzzle!.target)" : " ")
+                        .font(.system(size: 69, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .opacity(puzzle != nil ? 1 : 0)
+                }
+
+                Spacer()
+
+                HStack(spacing: 12) {
+                    ForEach(cards) { card in
+                        cardView(card: card)
+                            .transition(.scale(scale: 0.5).combined(with: .opacity))
+                    }
+                }
+                .padding(.horizontal, 16)
+                .frame(height: 95)
+                .animation(.spring(response: 0.35, dampingFraction: 0.7), value: cards.map(\.id))
+
+                Spacer(minLength: 16)
+
+                Text(expressionPreview)
+                    .font(.system(size: 30, weight: .medium, design: .monospaced))
+                    .foregroundColor(isDivisionByZero ? Color(red: 1.0, green: 0.35, blue: 0.35) : .white.opacity(0.65))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 32)
+                    .padding(.horizontal, 20)
+
+                Spacer(minLength: 8)
+
+                statusView
+                    .frame(minHeight: 28)
+
+                Spacer(minLength: 0)
+                    .frame(maxHeight: 20)
             }
 
             Spacer()
-
-            HStack(spacing: 12) {
-                ForEach(cards) { card in
-                    cardView(card: card)
-                        .transition(.scale(scale: 0.5).combined(with: .opacity))
-                }
-            }
-            .padding(.horizontal, 16)
-            .frame(height: 95)
-            .animation(.spring(response: 0.35, dampingFraction: 0.7), value: cards.map(\.id))
-
-            Spacer(minLength: 16)
-
-            Text(expressionPreview)
-                .font(.system(size: 30, weight: .medium, design: .monospaced))
-                .foregroundColor(isDivisionByZero ? Color(red: 1.0, green: 0.35, blue: 0.35) : .white.opacity(0.65))
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .frame(maxWidth: .infinity)
-                .frame(height: 32)
-                .padding(.horizontal, 20)
-
-            Spacer(minLength: 8)
-
-            statusView
-                .frame(minHeight: 28)
-
-            Spacer(minLength: 0)
-                .frame(maxHeight: 20)
         }
         .frame(maxWidth: .infinity)
     }
@@ -255,16 +357,14 @@ struct MakeTargetView: View {
 
             HStack(spacing: 8) {
                 bottomButton("Undo") { undoAction() }
-                    .disabled(cardHistory.isEmpty || gamePhase != .playing)
-                    .opacity(cardHistory.isEmpty || gamePhase != .playing ? 0.35 : 1)
-
-                bottomButton("Reset") { resetPuzzle() }
+                    .disabled(cardHistory.isEmpty || gamePhase != .playing || inputBlocked)
+                    .opacity(cardHistory.isEmpty || gamePhase != .playing || inputBlocked ? 0.35 : 1)
 
                 Spacer()
 
                 bottomButton("Show Solution") { showSolution() }
-                    .disabled(gamePhase != .playing)
-                    .opacity(gamePhase != .playing ? 0.35 : 1)
+                    .disabled(gamePhase != .playing || inputBlocked)
+                    .opacity(gamePhase != .playing || inputBlocked ? 0.35 : 1)
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 20)
@@ -367,9 +467,9 @@ struct MakeTargetView: View {
             }
         }
         .scaleEffect(isSelected ? 1.05 : 1.0)
-        .opacity(gamePhase == .playing ? 1 : 0.35)
+        .opacity(gamePhase == .playing && !inputBlocked ? 1 : 0.35)
         .animation(.spring(response: 0.25, dampingFraction: 0.65), value: isSelected)
-        .disabled(gamePhase != .playing)
+        .disabled(gamePhase != .playing || inputBlocked)
     }
 
     func operatorButton(_ op: String) -> some View {
@@ -392,8 +492,8 @@ struct MakeTargetView: View {
                 shape.strokeBorder(selectedTheme.accent, lineWidth: 2)
             }
         }
-        .opacity(gamePhase == .playing ? 1 : 0.35)
-        .disabled(gamePhase != .playing)
+        .opacity(gamePhase == .playing && !inputBlocked ? 1 : 0.35)
+        .disabled(gamePhase != .playing || inputBlocked)
     }
 
     func bottomButton(_ label: String, action: @escaping () -> Void) -> some View {
@@ -453,6 +553,7 @@ struct MakeTargetView: View {
 
         if updated.count == 1, updated[0].value == puzzle?.target {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
+            score += 1; streak += 1; totalAttempted += 1
             withAnimation(.easeInOut(duration: 0.2)) { gamePhase = .solved }
         }
     }
@@ -469,16 +570,55 @@ struct MakeTargetView: View {
 
     private func resetPuzzle() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        pauseTimer()
+        timerEnded = false
+        if let secs = selectedTimerMode.seconds { timeRemaining = secs }
         generateNewPuzzle()
     }
 
     private func showSolution() {
         guard gamePhase == .playing else { return }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        totalAttempted += 1
+        streak = 0
         selectedCardIDs = []
         selectedOperator = nil
         withAnimation(.easeInOut(duration: 0.2)) { gamePhase = .showingSolution }
     }
+
+    private func toggleTimer() { timerActive ? pauseTimer() : startTimer() }
+
+    private func startTimer() {
+        timerActive = true
+        gameTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            if self.timeRemaining > 0 { self.timeRemaining -= 1 } else { self.endTimer() }
+        }
+    }
+
+    private func pauseTimer() {
+        timerActive = false
+        gameTimer?.invalidate()
+        gameTimer = nil
+    }
+
+    private func endTimer() {
+        finalScore = score
+        finalAccuracy = accuracy
+        timerActive = false
+        timerEnded = true
+        gameTimer?.invalidate()
+        gameTimer = nil
+        score = 0; streak = 0; totalAttempted = 0
+    }
+
+    private func playAgain() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        timerEnded = false
+        if let secs = selectedTimerMode.seconds { timeRemaining = secs }
+        generateNewPuzzle()
+    }
+
+    private func timeString(_ s: Int) -> String { String(format: "%d:%02d", s / 60, s % 60) }
 
     private func generateNewPuzzle() {
         let (newPuzzle, numbers) = MakeTargetView.generate(difficulty: difficulty)
@@ -559,7 +699,6 @@ struct MakeTargetView: View {
 
     private static func generateMedium() -> (MakeTargetPuzzle, [Int]) {
         let pool = Array((-20...20).filter { $0 != 0 })
-        let ops = MakeTargetDifficulty.medium.allowedOperators
         let targetRange = MakeTargetDifficulty.medium.targetRange
 
         for _ in 0..<500 {
@@ -590,8 +729,8 @@ struct MakeTargetView: View {
 
     private static func generateHard() -> (MakeTargetPuzzle, [Int]) {
         let pool = Array((-30...30).filter { $0 != 0 })
-        let ops = MakeTargetDifficulty.hard.allowedOperators
-        let targetRange = MakeTargetDifficulty.hard.targetRange
+        let ops = MakeTargetDifficulty.expert.allowedOperators
+        let targetRange = MakeTargetDifficulty.expert.targetRange
 
         for _ in 0..<1000 {
             let nums = Array(pool.shuffled().prefix(4))
