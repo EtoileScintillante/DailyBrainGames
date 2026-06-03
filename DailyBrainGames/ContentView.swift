@@ -6,18 +6,94 @@
 //
 
 import SwiftUI
+import UIKit
 
-enum AppScreen: Equatable {
-    case home, arithmetic, makeTarget, numberChain, sequenceMemory
+enum GameRoute: Hashable {
+    case arithmetic
+    case makeTarget
+    case numberChain
+    case sequenceMemory
 }
 
 struct ContentView: View {
+    @State private var path: [GameRoute] = []
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            ScreenBackground {
+                HomeView { route in
+                    path = [route]
+                }
+                    .navigationDestination(for: GameRoute.self) { route in
+                        GameDestinationView(route: route)
+                    }
+            }
+            .toolbar(.hidden, for: .navigationBar)
+        }
+    }
+}
+
+private struct GameDestinationView: View {
+    let route: GameRoute
+    @Environment(\.dismiss) private var dismiss
+    @GestureState private var dragOffset: CGFloat = 0
+
+    var body: some View {
+        ScreenBackground {
+            Group {
+                switch route {
+                case .arithmetic:
+                    ArithmeticView {
+                        dismiss()
+                    }
+                case .makeTarget:
+                    MakeTargetView {
+                        dismiss()
+                    }
+                case .numberChain:
+                    NumberChainView {
+                        dismiss()
+                    }
+                case .sequenceMemory:
+                    SequenceMemoryView {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .offset(x: dragOffset)
+        .animation(.interactiveSpring(response: 0.28, dampingFraction: 0.86), value: dragOffset)
+        .gesture(swipeToDismissGesture)
+        .background(SwipeBackEnabler())
+        .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private var swipeToDismissGesture: some Gesture {
+        DragGesture(minimumDistance: 20, coordinateSpace: .local)
+            .updating($dragOffset) { value, state, _ in
+                guard value.translation.width > 0,
+                      abs(value.translation.height) < 80 else { return }
+                state = value.translation.width
+            }
+            .onEnded { value in
+                guard value.translation.width > 120,
+                      value.predictedEndTranslation.width > 180,
+                      abs(value.translation.height) < 100 else { return }
+                dismiss()
+            }
+    }
+}
+
+private struct ScreenBackground<Content: View>: View {
     @AppStorage("selectedTheme") private var selectedTheme: Theme = .purple
-    @State private var screen: AppScreen = .home
+    private let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
 
     var body: some View {
         ZStack {
-            // Shared wallpaper background — rendered once, behind all screens
             Color(red: 0.06, green: 0.04, blue: 0.14).ignoresSafeArea()
             if let uiImage = UIImage(named: selectedTheme.imageName) {
                 Image(uiImage: uiImage)
@@ -25,40 +101,42 @@ struct ContentView: View {
                     .scaledToFill()
                     .ignoresSafeArea()
             }
+            content
+        }
+    }
+}
 
-            // Screen routing — slide left/right like native push navigation
-            ZStack {
-                if screen == .home {
-                    HomeView { selected in
-                        withAnimation(.easeInOut(duration: 0.3)) { screen = selected }
-                    }
-                    .transition(.move(edge: .leading))
-                }
-                if screen == .arithmetic {
-                    ArithmeticView {
-                        withAnimation(.easeInOut(duration: 0.3)) { screen = .home }
-                    }
-                    .transition(.move(edge: .trailing))
-                }
-                if screen == .makeTarget {
-                    MakeTargetView {
-                        withAnimation(.easeInOut(duration: 0.3)) { screen = .home }
-                    }
-                    .transition(.move(edge: .trailing))
-                }
-                if screen == .numberChain {
-                    NumberChainView {
-                        withAnimation(.easeInOut(duration: 0.3)) { screen = .home }
-                    }
-                    .transition(.move(edge: .trailing))
-                }
-                if screen == .sequenceMemory {
-                    SequenceMemoryView {
-                        withAnimation(.easeInOut(duration: 0.3)) { screen = .home }
-                    }
-                    .transition(.move(edge: .trailing))
-                }
-            }
+private struct SwipeBackEnabler: UIViewControllerRepresentable {
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIViewController(context: Context) -> UIViewController {
+        UIViewController()
+    }
+
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
+        DispatchQueue.main.async {
+            guard let navigationController = uiViewController.navigationController else { return }
+            context.coordinator.navigationController = navigationController
+            navigationController.interactivePopGestureRecognizer?.isEnabled = true
+            navigationController.interactivePopGestureRecognizer?.delegate = context.coordinator
+        }
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        weak var navigationController: UINavigationController?
+
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard let navigationController else { return false }
+            return navigationController.viewControllers.count > 1
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+        ) -> Bool {
+            true
         }
     }
 }

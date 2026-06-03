@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct HomeView: View {
-    let onSelect: (AppScreen) -> Void
+    let onSelect: (GameRoute) -> Void
     @AppStorage("selectedTheme") private var selectedTheme: Theme = .purple
 
     var body: some View {
@@ -29,37 +29,33 @@ struct HomeView: View {
                     icon: "plus.forwardslash.minus",
                     title: "Arithmetic",
                     subtitle: "Addition, subtraction, multiplication & division",
+                    route: .arithmetic,
                     enabled: true
-                ) {
-                    onSelect(.arithmetic)
-                }
+                )
 
                 modeCard(
                     icon: "target",
                     title: "Make Target",
                     subtitle: "Combine number cards to reach the target",
+                    route: .makeTarget,
                     enabled: true
-                ) {
-                    onSelect(.makeTarget)
-                }
+                )
 
                 modeCard(
                     icon: "link",
                     title: "Number Chain",
                     subtitle: "Follow a chain of operations to find the answer or missing step",
+                    route: .numberChain,
                     enabled: true
-                ) {
-                    onSelect(.numberChain)
-                }
+                )
 
                 modeCard(
                     icon: "square.grid.3x3",
                     title: "Sequence",
                     subtitle: "Memorise and repeat the tile sequence",
+                    route: .sequenceMemory,
                     enabled: true
-                ) {
-                    onSelect(.sequenceMemory)
-                }
+                )
 
             }
             .padding(.horizontal, 20)
@@ -97,13 +93,14 @@ struct HomeView: View {
         icon: String,
         title: String,
         subtitle: String,
-        enabled: Bool,
-        action: @escaping () -> Void
+        route: GameRoute,
+        enabled: Bool
     ) -> some View {
-        Button(action: {
+        Button {
+            guard enabled else { return }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            action()
-        }) {
+            onSelect(route)
+        } label: {
             HStack(spacing: 16) {
                 Image(systemName: icon)
                     .font(.system(size: 26, weight: .semibold))
@@ -128,10 +125,14 @@ struct HomeView: View {
                         .foregroundColor(.white.opacity(0.5))
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
             .padding(.vertical, 20)
-            .glassEffect(enabled ? .regular.interactive(true) : .regular, in: RoundedRectangle(cornerRadius: 20))
+            .contentShape(RoundedRectangle(cornerRadius: 20))
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20))
         }
+        .contentShape(RoundedRectangle(cornerRadius: 20))
+        .buttonStyle(.plain)
         .disabled(!enabled)
     }
 }
@@ -139,6 +140,8 @@ struct HomeView: View {
 #Preview {
     ZStack {
         Color(red: 0.06, green: 0.04, blue: 0.14).ignoresSafeArea()
-        HomeView(onSelect: { _ in })
+        NavigationStack {
+            HomeView { _ in }
+        }
     }
 }
