@@ -216,12 +216,16 @@ struct NumberChainView: View {
     var inputBlocked: Bool { selectedTimerMode != .untimed && !timerActive }
 
     var answerDisplay: String {
-        let digits = inputDigits.isEmpty ? "?" : inputDigits
-        let signedDigits = (isNegativeValue ? "−" : "") + digits
-        guard let p = puzzle, p.isMissingStep else { return signedDigits }
-        let opStr = selectedOp?.rawValue ?? ""
-        if inputDigits.isEmpty && selectedOp == nil { return "?" }
-        return opStr + signedDigits
+        guard let p = puzzle, p.isMissingStep else {
+            // Normal mode: "?" until digits are entered; sign is invisible until then
+            if inputDigits.isEmpty { return "?" }
+            return (isNegativeValue ? "−" : "") + inputDigits
+        }
+        // Missing step mode
+        if selectedOp == nil && inputDigits.isEmpty { return "?" }
+        let opStr = selectedOp?.rawValue ?? "?"
+        let numPart = inputDigits.isEmpty ? "?" : (isNegativeValue ? "−" : "") + inputDigits
+        return opStr + numPart
     }
 
     var body: some View {
@@ -493,7 +497,7 @@ struct NumberChainView: View {
                 ncKeyButton(label: signLabel, isSignButton: true, disabled: inputBlocked || showingAnswer) {
                     toggleSign()
                 }
-                ncKeyButton(label: ".", disabled: inputBlocked || showingAnswer) {
+                ncKeyButton(label: ",", disabled: inputBlocked || showingAnswer) {
                     appendDecimal()
                 }
                 ncKeyButton(label: "0", disabled: inputBlocked || showingAnswer) {
