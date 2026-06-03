@@ -11,7 +11,9 @@ struct SequenceMemoryView: View {
     let onBack: () -> Void
 
     @AppStorage("selectedTheme") private var selectedTheme: Theme = .purple
-    @AppStorage("sequenceMemoryHighScore") private var highScore: Int = 0
+    @AppStorage("sequenceMemoryHighScore") private var highScore3x3: Int = 0
+    @AppStorage("sequenceMemoryHighScore4x4") private var highScore4x4: Int = 0
+    @AppStorage("sequenceMemory4x4") private var is4x4: Bool = false
 
     // Adjust these to tune the feel of the game
     private let tileLitDuration: Double = 0.65
@@ -34,6 +36,17 @@ struct SequenceMemoryView: View {
     @State private var appeared: Bool = false
 
     private enum GamePhase { case idle, countdown, showing, input, roundComplete, gameOver }
+
+    private var tileCount: Int { is4x4 ? 16 : 9 }
+    private var gridColumns: Int { is4x4 ? 4 : 3 }
+    private var tileCornerRadius: CGFloat { is4x4 ? 12 : 16 }
+    private var gridSpacing: CGFloat { is4x4 ? 8 : 12 }
+    private var gridPadding: CGFloat { is4x4 ? 20 : 28 }
+    private var gameIsActive: Bool { gamePhase != .idle && gamePhase != .gameOver }
+
+    private var activeHighScore: Int {
+        get { is4x4 ? highScore4x4 : highScore3x3 }
+    }
 
     // MARK: - Body
 
@@ -91,11 +104,42 @@ struct SequenceMemoryView: View {
             HStack(spacing: 0) {
                 statView(label: "Score", value: "\(score)")
                 statDivider
-                statView(label: "Best",  value: "\(highScore)")
+                statView(label: "Best",  value: "\(activeHighScore)")
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16))
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
+
+            HStack {
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    is4x4.toggle()
+                    stopAndReset()
+                } label: {
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(is4x4 ? selectedTheme.accent : Color.white.opacity(0.35))
+                            .frame(width: 8, height: 8)
+                        Text("4×4")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .glassEffect(.regular, in: Capsule())
+                    .overlay {
+                        if is4x4 {
+                            Capsule().strokeBorder(selectedTheme.accent, lineWidth: 2)
+                        }
+                    }
+                }
+                .disabled(gameIsActive)
+                .opacity(gameIsActive ? 0.4 : 1)
+
+                Spacer()
+            }
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
         }
@@ -111,14 +155,15 @@ struct SequenceMemoryView: View {
                 .frame(height: 56)
 
             LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
-                spacing: 12
+                columns: Array(repeating: GridItem(.flexible(), spacing: gridSpacing), count: gridColumns),
+                spacing: gridSpacing
             ) {
-                ForEach(0..<9, id: \.self) { index in
+                ForEach(0..<tileCount, id: \.self) { index in
                     tileView(index: index)
                 }
             }
-            .padding(.horizontal, 28)
+            .padding(.horizontal, gridPadding)
+            .animation(.easeInOut(duration: 0.25), value: is4x4)
 
             Spacer()
         }
@@ -158,7 +203,7 @@ struct SequenceMemoryView: View {
         let isLit   = litTile   == index
         let isWrong = wrongTile == index
         let isGreen = greenTile == index
-        let shape   = RoundedRectangle(cornerRadius: 16)
+        let shape   = RoundedRectangle(cornerRadius: tileCornerRadius)
 
         return Button {
             guard gamePhase == .input else { return }
@@ -197,7 +242,7 @@ struct SequenceMemoryView: View {
     // MARK: - Controls
 
     var controlsArea: some View {
-        let isActive = gamePhase != .idle && gamePhase != .gameOver
+        let isActive = gameIsActive
         return Button {
             if isActive { stopAndReset() } else { startGame() }
         } label: {
@@ -230,7 +275,7 @@ struct SequenceMemoryView: View {
                     Text("Score: \(score)")
                         .font(.system(size: 22, weight: .semibold, design: .rounded))
                         .foregroundColor(.white.opacity(0.9))
-                    Text("Best: \(highScore)")
+                    Text("Best: \(activeHighScore)")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.white.opacity(0.6))
                 }
@@ -271,14 +316,13 @@ struct SequenceMemoryView: View {
     }
 
     private func nextRound() {
-        // Append a new tile, always different from the previous one
         let newTile: Int
         if let last = sequence.last {
             var candidate: Int
-            repeat { candidate = Int.random(in: 0..<9) } while candidate == last
+            repeat { candidate = Int.random(in: 0..<tileCount) } while candidate == last
             newTile = candidate
         } else {
-            newTile = Int.random(in: 0..<9)
+            newTile = Int.random(in: 0..<tileCount)
         }
         sequence.append(newTile)
         playerInputCount = 0
@@ -306,7 +350,6 @@ struct SequenceMemoryView: View {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
         if index == sequence[playerInputCount] {
-            // Flash green briefly for positive feedback
             greenTile = index
             Task {
                 try? await Task.sleep(nanoseconds: 250_000_000)
@@ -314,16 +357,17 @@ struct SequenceMemoryView: View {
             }
             playerInputCount += 1
             if playerInputCount == sequence.count {
-                // Disable tapping immediately; keep "Your turn!" until green fades
                 score += 1
-                if score > highScore { highScore = score }
+                if is4x4 {
+                    if score > highScore4x4 { highScore4x4 = score }
+                } else {
+                    if score > highScore3x3 { highScore3x3 = score }
+                }
                 gamePhase = .roundComplete
                 cancelCurrentTask()
                 currentTask = Task {
-                    // Wait for green flash to finish
                     try? await Task.sleep(nanoseconds: UInt64(correctFlashDuration * 1_500_000_000))
                     if Task.isCancelled { return }
-                    // Now show "Watch!" and hold before next sequence
                     gamePhase = .showing
                     try? await Task.sleep(nanoseconds: UInt64(betweenRoundPause * 1_000_000_000))
                     if Task.isCancelled { return }
@@ -331,7 +375,6 @@ struct SequenceMemoryView: View {
                 }
             }
         } else {
-            // Wrong tile — light it red, then show Game Over
             UINotificationFeedbackGenerator().notificationOccurred(.error)
             gamePhase = .gameOver
             wrongTile = index
