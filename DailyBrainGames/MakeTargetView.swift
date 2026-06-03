@@ -45,8 +45,12 @@ struct MakeTargetView: View {
     @State private var score: Int = 0
     /// Consecutive solved puzzles in the current session.
     @State private var streak: Int = 0
-    /// Submitted puzzles counted for accuracy.
+    /// Total puzzles completed (solved or solution revealed).
     @State private var totalAttempted: Int = 0
+    /// Puzzles solved without ever triggering the "Incorrect!" banner.
+    @State private var firstTryCorrect: Int = 0
+    /// Whether the "Incorrect!" state was triggered at least once on the current puzzle.
+    @State private var hadIncorrect: Bool = false
     /// Score captured at the moment a timed round ends.
     @State private var finalScore: Int = 0
     /// Accuracy captured at the moment a timed round ends.
@@ -58,10 +62,10 @@ struct MakeTargetView: View {
     /// Prevents interactions before a timed round starts or while it is paused.
     private var inputBlocked: Bool { selectedTimerMode != .untimed && !timerActive }
 
-    /// Percentage of submitted puzzles solved correctly.
+    /// Percentage of puzzles solved without ever seeing the "Incorrect!" banner.
     private var accuracy: Double {
         guard totalAttempted > 0 else { return 0 }
-        return Double(score) / Double(totalAttempted) * 100
+        return Double(firstTryCorrect) / Double(totalAttempted) * 100
     }
 
     /// Whether the current selection would divide by zero.
@@ -180,7 +184,7 @@ struct MakeTargetView: View {
             HStack(spacing: 8) {
                 pickerMenu(title: difficulty.rawValue, options: MakeTargetDifficulty.allCases) { diff in
                     difficulty = diff
-                    score = 0; streak = 0; totalAttempted = 0
+                    score = 0; streak = 0; totalAttempted = 0; firstTryCorrect = 0
                     generateNewPuzzle()
                 }
                 pickerMenu(title: selectedTimerMode.rawValue, options: TimerMode.allCases) { mode in
@@ -188,7 +192,7 @@ struct MakeTargetView: View {
                     pauseTimer()
                     timerEnded = false
                     if let secs = mode.seconds { timeRemaining = secs }
-                    score = 0; streak = 0; totalAttempted = 0
+                    score = 0; streak = 0; totalAttempted = 0; firstTryCorrect = 0
                 }
             }
             .padding(.bottom, 8)
@@ -601,7 +605,11 @@ struct MakeTargetView: View {
         if updated.count == 1, updated[0].value == puzzle?.target {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             score += 1; streak += 1; totalAttempted += 1
+            if !hadIncorrect { firstTryCorrect += 1 }
             withAnimation(.easeInOut(duration: 0.2)) { gamePhase = .solved }
+        } else if updated.count == 1 {
+            // One card remains but it doesn't match the target — "Incorrect!" will show
+            hadIncorrect = true
         }
     }
 
@@ -662,7 +670,7 @@ struct MakeTargetView: View {
         timerEnded = true
         gameTimer?.invalidate()
         gameTimer = nil
-        score = 0; streak = 0; totalAttempted = 0
+        score = 0; streak = 0; totalAttempted = 0; firstTryCorrect = 0
     }
 
     /// Closes the timed summary and starts a fresh puzzle.
@@ -687,6 +695,7 @@ struct MakeTargetView: View {
         selectedCardIDs = []
         selectedOperator = nil
         gamePhase = .playing
+        hadIncorrect = false
     }
 
     /// Computes the result of combining two card values.

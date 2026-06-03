@@ -261,8 +261,10 @@ struct NumberChainView: View {
     @State private var score: Int = 0
     /// Consecutive correct answers in the current session.
     @State private var streak: Int = 0
-    /// Submitted puzzles counted for accuracy.
+    /// Total puzzles completed (correct or revealed after two wrong tries).
     @State private var totalAttempted: Int = 0
+    /// Puzzles answered correctly on the very first attempt.
+    @State private var firstTryCorrect: Int = 0
 
     /// Countdown value in seconds for timed modes.
     @State private var timeRemaining: Int = 0
@@ -276,10 +278,10 @@ struct NumberChainView: View {
     /// Accuracy captured at the moment a timed round ends.
     @State private var finalAccuracy: Double = 0
 
-    /// Percentage of submitted puzzles answered correctly.
+    /// Percentage of puzzles answered correctly on the first attempt.
     var accuracy: Double {
         guard totalAttempted > 0 else { return 0 }
-        return Double(score) / Double(totalAttempted) * 100
+        return Double(firstTryCorrect) / Double(totalAttempted) * 100
     }
 
     /// Prevents keypad input before a timed round starts or while it is paused.
@@ -746,6 +748,7 @@ struct NumberChainView: View {
     /// Records a correct answer, clears input, and advances after a short success pause.
     private func markCorrect() {
         score += 1; streak += 1; totalAttempted += 1
+        if wrongAttempts == 0 { firstTryCorrect += 1 }
         wrongAttempts = 0
         feedback = "Correct ✓"
         feedbackColor = selectedTheme.accent
@@ -827,7 +830,7 @@ struct NumberChainView: View {
         finalAccuracy = accuracy
         timerActive = false; timerEnded = true
         gameTimer?.invalidate(); gameTimer = nil
-        score = 0; streak = 0; totalAttempted = 0
+        score = 0; streak = 0; totalAttempted = 0; firstTryCorrect = 0
     }
 
     /// Formats seconds as `m:ss` for the timer label.
@@ -838,7 +841,7 @@ struct NumberChainView: View {
     /// Resets score, timer, feedback, input, and puzzle state for a fresh round.
     func resetGame() {
         pauseTimer()
-        score = 0; streak = 0; totalAttempted = 0
+        score = 0; streak = 0; totalAttempted = 0; firstTryCorrect = 0
         wrongAttempts = 0; showingAnswer = false; timerEnded = false; timerActive = false
         feedback = ""
         if let secs = selectedTimerMode.seconds { timeRemaining = secs }

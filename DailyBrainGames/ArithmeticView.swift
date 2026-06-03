@@ -47,8 +47,10 @@ struct ArithmeticView: View {
     @State private var score: Int = 0
     /// Consecutive correct answers in the current session.
     @State private var streak: Int = 0
-    /// Submitted questions counted for accuracy.
+    /// Total questions completed (correct or revealed after two wrong tries).
     @State private var totalAttempted: Int = 0
+    /// Questions answered correctly on the very first attempt.
+    @State private var firstTryCorrect: Int = 0
 
     /// Countdown value in seconds for timed modes.
     @State private var timeRemaining: Int = 0
@@ -62,10 +64,10 @@ struct ArithmeticView: View {
     /// Accuracy captured at the moment a timed round ends.
     @State private var finalAccuracy: Double = 0
 
-    /// Percentage of submitted questions answered correctly.
+    /// Percentage of questions answered correctly on the first attempt.
     var accuracy: Double {
         guard totalAttempted > 0 else { return 0 }
-        return Double(score) / Double(totalAttempted) * 100
+        return Double(firstTryCorrect) / Double(totalAttempted) * 100
     }
 
     /// The answer text shown in the input capsule.
@@ -401,6 +403,7 @@ struct ArithmeticView: View {
             score += 1
             streak += 1
             totalAttempted += 1
+            if wrongAttempts == 0 { firstTryCorrect += 1 }
             wrongAttempts = 0
             feedback = "Correct ✓"
             feedbackColor = selectedTheme.accent
@@ -738,7 +741,7 @@ struct ArithmeticView: View {
         finalAccuracy = accuracy
         timerActive = false; timerEnded = true
         gameTimer?.invalidate(); gameTimer = nil
-        score = 0; streak = 0; totalAttempted = 0
+        score = 0; streak = 0; totalAttempted = 0; firstTryCorrect = 0
     }
 
     /// Formats seconds as `m:ss` for the timer label.
@@ -749,7 +752,7 @@ struct ArithmeticView: View {
     /// Resets score, timer, feedback, input, and question state for a fresh round.
     func resetGame() {
         pauseTimer()
-        score = 0; streak = 0; totalAttempted = 0
+        score = 0; streak = 0; totalAttempted = 0; firstTryCorrect = 0
         feedback = ""; inputDigits = ""; isNegative = false
         wrongAttempts = 0; showingAnswer = false; timerEnded = false; timerActive = false
         if let secs = selectedTimerMode.seconds { timeRemaining = secs }
