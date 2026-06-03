@@ -7,38 +7,64 @@
 
 import SwiftUI
 
+/// Interactive Make Target game screen.
+///
+/// The player combines pairs of number cards with arithmetic operators until
+/// one card remains. The puzzle is solved when that final card equals the target.
 struct MakeTargetView: View {
+    /// Called by the custom back button to return to Home.
     let onBack: () -> Void
 
     @AppStorage("selectedTheme") private var selectedTheme: Theme = .purple
+    /// Persisted Make Target difficulty.
     @AppStorage("makeTargetDifficulty") private var difficulty: MakeTargetDifficulty = .easy
+    /// Current puzzle metadata, including the target and one known solution.
     @State private var puzzle: MakeTargetPuzzle? = nil
+    /// Cards currently available to combine.
     @State private var cards: [MakeTargetCard] = []
+    /// IDs of the selected cards. At most two cards can be selected.
     @State private var selectedCardIDs: [UUID] = []
+    /// Selected arithmetic operator for the next combination.
     @State private var selectedOperator: String? = nil
+    /// Previous card layouts used by Undo.
     @State private var cardHistory: [[MakeTargetCard]] = []
+    /// Current interaction state for the puzzle.
     @State private var gamePhase: GamePhase = .playing
+    /// Whether the help overlay is visible.
     @State private var showingHelp: Bool = false
+    /// Timer selection is session-local for this game screen.
     @State private var selectedTimerMode: TimerMode = .untimed
+    /// Countdown value in seconds for timed modes.
     @State private var timeRemaining: Int = 0
+    /// Whether the countdown is actively running.
     @State private var timerActive: Bool = false
+    /// Whether a timed round has ended and the summary view should be shown.
     @State private var timerEnded: Bool = false
     @State private var gameTimer: Timer? = nil
+    /// Solved puzzles in the current session.
     @State private var score: Int = 0
+    /// Consecutive solved puzzles in the current session.
     @State private var streak: Int = 0
+    /// Submitted puzzles counted for accuracy.
     @State private var totalAttempted: Int = 0
+    /// Score captured at the moment a timed round ends.
     @State private var finalScore: Int = 0
+    /// Accuracy captured at the moment a timed round ends.
     @State private var finalAccuracy: Double = 0
 
+    /// High-level puzzle state used by the Enter button and status label.
     private enum GamePhase { case playing, solved, showingSolution }
 
+    /// Prevents interactions before a timed round starts or while it is paused.
     private var inputBlocked: Bool { selectedTimerMode != .untimed && !timerActive }
 
+    /// Percentage of submitted puzzles solved correctly.
     private var accuracy: Double {
         guard totalAttempted > 0 else { return 0 }
         return Double(score) / Double(totalAttempted) * 100
     }
 
+    /// Whether the current selection would divide by zero.
     private var isDivisionByZero: Bool {
         guard selectedOperator == "÷",
               selectedCardIDs.count == 2,
@@ -48,6 +74,10 @@ struct MakeTargetView: View {
         return card2.value == 0
     }
 
+    /// Whether the Enter button should accept the current state.
+    ///
+    /// While playing, two cards and one valid operator are required. After a
+    /// puzzle is solved or the solution is shown, Enter advances to a new puzzle.
     private var canSubmit: Bool {
         guard !inputBlocked else { return false }
         switch gamePhase {
@@ -56,10 +86,15 @@ struct MakeTargetView: View {
         }
     }
 
+    /// Whether the current final card is wrong and should show an error message.
     private var showIncorrect: Bool {
         gamePhase == .playing && cards.count == 1 && cards.first?.value != puzzle?.target
     }
 
+    /// Preview of the next card expression produced by the current selection.
+    ///
+    /// This gives immediate feedback while the player chooses cards/operators
+    /// and also warns about division by zero before submission.
     private var expressionPreview: String {
         let c1: MakeTargetCard? = selectedCardIDs.count > 0
             ? cards.first(where: { $0.id == selectedCardIDs[0] }) : nil
@@ -509,6 +544,10 @@ struct MakeTargetView: View {
 
     // MARK: - Actions
 
+    /// Selects or deselects a card for the next operation.
+    ///
+    /// Selection order matters for subtraction and division, so the IDs are kept
+    /// in the order the player tapped them.
     private func toggleCard(_ card: MakeTargetCard) {
         if let idx = selectedCardIDs.firstIndex(of: card.id) {
             selectedCardIDs.remove(at: idx)
@@ -517,6 +556,10 @@ struct MakeTargetView: View {
         }
     }
 
+    /// Handles the main Enter button.
+    ///
+    /// During play it combines the selected cards. After a solved/revealed
+    /// puzzle, it advances to the next generated puzzle.
     private func pressEnter() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         switch gamePhase {
@@ -525,6 +568,10 @@ struct MakeTargetView: View {
         }
     }
 
+    /// Combines the two selected cards into one new card.
+    ///
+    /// The previous card list is saved for Undo, the new card is inserted near
+    /// the original card positions, and solving the target updates score/streak.
     private func submitCombination() {
         guard selectedCardIDs.count == 2,
               let op = selectedOperator,
@@ -558,6 +605,7 @@ struct MakeTargetView: View {
         }
     }
 
+    /// Restores the previous card layout from `cardHistory`.
     private func undoAction() {
         guard !cardHistory.isEmpty, gamePhase == .playing else { return }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -568,6 +616,7 @@ struct MakeTargetView: View {
         selectedOperator = nil
     }
 
+    /// Resets the current puzzle and timer state, then generates a new puzzle.
     private func resetPuzzle() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         pauseTimer()
@@ -576,6 +625,7 @@ struct MakeTargetView: View {
         generateNewPuzzle()
     }
 
+    /// Reveals the stored solution expression and counts the puzzle as attempted.
     private func showSolution() {
         guard gamePhase == .playing else { return }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -586,8 +636,10 @@ struct MakeTargetView: View {
         withAnimation(.easeInOut(duration: 0.2)) { gamePhase = .showingSolution }
     }
 
+    /// Starts or pauses the active timed round.
     private func toggleTimer() { timerActive ? pauseTimer() : startTimer() }
 
+    /// Starts the countdown timer for timed modes.
     private func startTimer() {
         timerActive = true
         gameTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
@@ -595,12 +647,14 @@ struct MakeTargetView: View {
         }
     }
 
+    /// Pauses the countdown and releases the scheduled timer.
     private func pauseTimer() {
         timerActive = false
         gameTimer?.invalidate()
         gameTimer = nil
     }
 
+    /// Finishes a timed round and captures the summary stats before resetting live counters.
     private func endTimer() {
         finalScore = score
         finalAccuracy = accuracy
@@ -611,6 +665,7 @@ struct MakeTargetView: View {
         score = 0; streak = 0; totalAttempted = 0
     }
 
+    /// Closes the timed summary and starts a fresh puzzle.
     private func playAgain() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         timerEnded = false
@@ -618,8 +673,10 @@ struct MakeTargetView: View {
         generateNewPuzzle()
     }
 
+    /// Formats seconds as `m:ss` for the timer label.
     private func timeString(_ s: Int) -> String { String(format: "%d:%02d", s / 60, s % 60) }
 
+    /// Generates a new puzzle and resets all per-puzzle selection/history state.
     private func generateNewPuzzle() {
         let (newPuzzle, numbers) = MakeTargetView.generate(difficulty: difficulty)
         withAnimation(.easeInOut(duration: 0.25)) {
@@ -632,6 +689,11 @@ struct MakeTargetView: View {
         gamePhase = .playing
     }
 
+    /// Computes the result of combining two card values.
+    ///
+    /// Division is rounded here for the live UI because invalid division by zero
+    /// is already blocked before submission. Puzzle generation uses `applyOp`,
+    /// which is stricter and only accepts clean integer division.
     private func compute(_ a: Int, _ op: String, _ b: Int) -> Int {
         switch op {
         case "+": return a + b
@@ -646,6 +708,13 @@ struct MakeTargetView: View {
 
     // MARK: - Puzzle Generation
 
+    /// Generates a Make Target puzzle and its starting cards.
+    ///
+    /// The returned numbers are the initial card values. The puzzle also stores
+    /// one known solution expression so the UI can reveal it when requested.
+    ///
+    /// - Parameter difficulty: Difficulty preset controlling ranges and operators.
+    /// - Returns: A puzzle plus the four starting card values.
     static func generate(difficulty: MakeTargetDifficulty) -> (MakeTargetPuzzle, [Int]) {
         switch difficulty {
         case .easy:          return generateEasy()
@@ -654,7 +723,10 @@ struct MakeTargetView: View {
         }
     }
 
-    // Returns nil if the operation is invalid (zero division, unclean division, or overflow)
+    /// Applies an operation during puzzle generation.
+    ///
+    /// Returns `nil` if the operation is invalid: division by zero, division
+    /// with a remainder, or an intermediate result outside the supported range.
     private static func applyOp(_ a: Int, _ op: String, _ b: Int) -> Int? {
         switch op {
         case "+":
@@ -673,6 +745,10 @@ struct MakeTargetView: View {
         }
     }
 
+    /// Generates an Easy puzzle using positive cards and addition/subtraction only.
+    ///
+    /// The generator requires both `+` and `−` to appear so Easy puzzles still
+    /// ask the player to think about operation choice.
     private static func generateEasy() -> (MakeTargetPuzzle, [Int]) {
         for _ in 0..<500 {
             let nums = Array(Array(1...15).shuffled().prefix(4))
@@ -697,6 +773,10 @@ struct MakeTargetView: View {
         return (MakeTargetPuzzle(target: 10, solutionExpression: "((1 + 2) + 3) + 4"), [1, 2, 3, 4])
     }
 
+    /// Generates a Medium/Hard puzzle.
+    ///
+    /// Medium and Hard use the same numeric generation rules. The difference is
+    /// display difficulty: Hard hides intermediate card values.
     private static func generateMedium() -> (MakeTargetPuzzle, [Int]) {
         let pool = Array((-20...20).filter { $0 != 0 })
         let targetRange = MakeTargetDifficulty.medium.targetRange
@@ -727,6 +807,10 @@ struct MakeTargetView: View {
         return (MakeTargetPuzzle(target: 6, solutionExpression: "((2 × 3) + 1) − 1"), [2, 3, 1, 1])
     }
 
+    /// Generates an Expert puzzle.
+    ///
+    /// Expert expands the number range, includes division, and requires at least
+    /// one multiplication or division operation in the stored solution.
     private static func generateHard() -> (MakeTargetPuzzle, [Int]) {
         let pool = Array((-30...30).filter { $0 != 0 })
         let ops = MakeTargetDifficulty.expert.allowedOperators

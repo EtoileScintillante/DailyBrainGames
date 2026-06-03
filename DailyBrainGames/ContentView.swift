@@ -8,6 +8,10 @@
 import SwiftUI
 import UIKit
 
+/// The top-level screens that can be pushed from Home.
+///
+/// Each case is a sibling route, so the navigation stack is always
+/// `Home -> selected game` instead of game screens nesting inside each other.
 enum GameRoute: Hashable {
     case arithmetic
     case makeTarget
@@ -15,6 +19,10 @@ enum GameRoute: Hashable {
     case sequenceMemory
 }
 
+/// Root view for the app.
+///
+/// Owns the single `NavigationStack` and its path so Home can push any game
+/// directly while every game still swipes or dismisses back to Home.
 struct ContentView: View {
     @State private var path: [GameRoute] = []
 
@@ -84,6 +92,10 @@ private struct GameDestinationView: View {
     }
 }
 
+/// Applies the active theme wallpaper behind a screen.
+///
+/// This wrapper is used for Home and game destinations so pushed screens have
+/// their own full background while still participating in native navigation.
 private struct ScreenBackground<Content: View>: View {
     @AppStorage("selectedTheme") private var selectedTheme: Theme = .purple
     private let content: Content
@@ -106,6 +118,11 @@ private struct ScreenBackground<Content: View>: View {
     }
 }
 
+/// Re-enables UIKit's interactive pop gesture when the SwiftUI navigation bar is hidden.
+///
+/// Hiding the navigation bar can disable the standard edge swipe in some
+/// navigation controller configurations. This bridge keeps the custom in-game
+/// headers while restoring the expected iOS back-swipe behavior.
 private struct SwipeBackEnabler: UIViewControllerRepresentable {
     func makeCoordinator() -> Coordinator {
         Coordinator()

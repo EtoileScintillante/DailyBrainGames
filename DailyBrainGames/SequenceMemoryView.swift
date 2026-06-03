@@ -7,43 +7,72 @@
 
 import SwiftUI
 
+/// Interactive sequence memory game screen.
+///
+/// The game shows an expanding tile sequence. The player repeats the sequence
+/// from memory, earning one point for each completed round.
 struct SequenceMemoryView: View {
+    /// Called by the custom back button to return to Home.
     let onBack: () -> Void
 
     @AppStorage("selectedTheme") private var selectedTheme: Theme = .purple
+    /// Persisted best score for the 3x3 grid.
     @AppStorage("sequenceMemoryHighScore") private var highScore3x3: Int = 0
+    /// Persisted best score for the 4x4 grid.
     @AppStorage("sequenceMemoryHighScore4x4") private var highScore4x4: Int = 0
+    /// Persisted grid-size toggle.
     @AppStorage("sequenceMemory4x4") private var is4x4: Bool = false
 
-    // Adjust these to tune the feel of the game
+    /// How long each sequence tile stays lit during playback.
     private let tileLitDuration: Double = 0.65
+    /// Pause between lit tiles during playback.
     private let tileGapDuration: Double = 0.22
+    /// Pause between countdown numbers.
     private let countdownInterval: Double = 0.8
+    /// Pause after countdown before sequence playback begins.
     private let postCountdownPause: Double = 1.0
+    /// Pause between a completed round and the next sequence playback.
     private let betweenRoundPause: Double = 1.0
+    /// Base pause after the player completes a round correctly.
     private let correctFlashDuration: Double = 0.25
 
+    /// Full generated sequence of tile indexes for the current run.
     @State private var sequence: [Int] = []
+    /// Number of correct taps entered in the current round.
     @State private var playerInputCount: Int = 0
+    /// Completed rounds in the current run.
     @State private var score: Int = 0
+    /// Current phase of the game state machine.
     @State private var gamePhase: GamePhase = .idle
+    /// Tile currently lit during playback.
     @State private var litTile: Int? = nil
+    /// Tile flashed red after an incorrect tap.
     @State private var wrongTile: Int? = nil
+    /// Tile flashed green after a correct tap.
     @State private var greenTile: Int? = nil
+    /// Current countdown number shown before playback starts.
     @State private var countdownValue: Int = 3
+    /// Whether the game-over modal is visible.
     @State private var showGameOver: Bool = false
+    /// Async task currently driving countdown, playback, or delayed transitions.
     @State private var currentTask: Task<Void, Never>? = nil
+    /// Controls the initial fade-in for the board and controls.
     @State private var appeared: Bool = false
 
+    /// Phases for the sequence memory state machine.
     private enum GamePhase { case idle, countdown, showing, input, roundComplete, gameOver }
 
+    /// Number of tiles in the active grid.
     private var tileCount: Int { is4x4 ? 16 : 9 }
+    /// Number of columns in the active grid.
     private var gridColumns: Int { is4x4 ? 4 : 3 }
     private var tileCornerRadius: CGFloat { is4x4 ? 12 : 16 }
     private var gridSpacing: CGFloat { is4x4 ? 8 : 12 }
     private var gridPadding: CGFloat { is4x4 ? 20 : 28 }
+    /// Whether a run is in progress and can be stopped.
     private var gameIsActive: Bool { gamePhase != .idle && gamePhase != .gameOver }
 
+    /// Best score for the active grid size.
     private var activeHighScore: Int {
         get { is4x4 ? highScore4x4 : highScore3x3 }
     }
@@ -199,6 +228,10 @@ struct SequenceMemoryView: View {
 
     // MARK: - Tile
 
+    /// Builds one tappable tile in the sequence grid.
+    ///
+    /// The tile's visual state is driven by `litTile`, `wrongTile`, and
+    /// `greenTile`, while taps are accepted only during the input phase.
     func tileView(index: Int) -> some View {
         let isLit   = litTile   == index
         let isWrong = wrongTile == index
@@ -291,6 +324,10 @@ struct SequenceMemoryView: View {
 
     // MARK: - Game Logic
 
+    /// Starts a fresh run with a countdown, then begins the first round.
+    ///
+    /// The countdown and follow-up transition are driven by `currentTask` so the
+    /// sequence can be cancelled cleanly if the player stops or leaves the view.
     private func startGame() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         sequence = []
@@ -315,6 +352,9 @@ struct SequenceMemoryView: View {
         }
     }
 
+    /// Adds one tile to the sequence and starts playback for the new round.
+    ///
+    /// Consecutive duplicate tiles are avoided so the sequence is easier to read.
     private func nextRound() {
         let newTile: Int
         if let last = sequence.last {
@@ -331,6 +371,10 @@ struct SequenceMemoryView: View {
         currentTask = Task { await showSequence() }
     }
 
+    /// Plays the full sequence by lighting each tile in order.
+    ///
+    /// When playback finishes, the game moves to the input phase so the player
+    /// can repeat the sequence.
     private func showSequence() async {
         gamePhase = .showing
         for tile in sequence {
@@ -345,6 +389,11 @@ struct SequenceMemoryView: View {
         gamePhase = .input
     }
 
+    /// Handles one player tile tap during the input phase.
+    ///
+    /// Correct taps advance through the sequence and flash green. Completing the
+    /// full sequence updates score/high score and schedules the next round.
+    /// Incorrect taps end the run and show the game-over overlay.
     private func handleTileTap(index: Int) {
         guard playerInputCount < sequence.count else { return }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -388,6 +437,7 @@ struct SequenceMemoryView: View {
         }
     }
 
+    /// Stops the current run and returns the screen to its idle state.
     private func stopAndReset() {
         cancelCurrentTask()
         litTile = nil
@@ -400,6 +450,7 @@ struct SequenceMemoryView: View {
         gamePhase = .idle
     }
 
+    /// Dismisses the game-over overlay and clears the finished run.
     private func closeGameOver() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         withAnimation(.easeInOut(duration: 0.2)) { showGameOver = false }
@@ -412,6 +463,7 @@ struct SequenceMemoryView: View {
         gamePhase = .idle
     }
 
+    /// Cancels any async sequence/countdown task currently in flight.
     private func cancelCurrentTask() {
         currentTask?.cancel()
         currentTask = nil

@@ -7,47 +7,74 @@
 
 import SwiftUI
 
+/// Interactive arithmetic drill screen.
+///
+/// Generates a stream of arithmetic questions, accepts keypad input, tracks
+/// score/streak/accuracy, and optionally runs a countdown timer.
 struct ArithmeticView: View {
+    /// Called by the custom back button to return to Home.
     let onBack: () -> Void
 
+    /// Persisted operation mode selected in the header.
     @AppStorage("selectedOperation") private var selectedOperation: Operation = .addition
+    /// Persisted difficulty selected in the header.
     @AppStorage("selectedDifficulty") private var selectedDifficulty: Difficulty = .easy
+    /// Timer selection is session-local for this game screen.
     @State private var selectedTimerMode: TimerMode = .untimed
     @AppStorage("selectedTheme") private var selectedTheme: Theme = .purple
+    /// Persisted toggle for decimal questions on non-Expert difficulties.
     @AppStorage("decimalsEnabled") private var decimalsEnabled: Bool = false
 
+    /// Buffered questions so the next question can appear immediately.
     @State private var questionQueue: [Question] = []
+    /// Question currently shown to the player.
     @State private var currentQuestion: Question? = nil
 
+    /// Digits typed on the custom keypad, using a comma as the decimal separator.
     @State private var inputDigits: String = ""
+    /// Whether the currently typed value should be treated as negative.
     @State private var isNegative: Bool = false
 
+    /// Short response shown after submit, such as "Correct" or "Try again".
     @State private var feedback: String = ""
     @State private var feedbackColor: Color = Color(red: 0.70, green: 0.45, blue: 1.00)
+    /// Number of wrong tries on the current question. The second wrong try reveals the answer.
     @State private var wrongAttempts: Int = 0
+    /// True while the correct answer is being shown after repeated wrong attempts.
     @State private var showingAnswer: Bool = false
 
+    /// Correct answers in the current session.
     @State private var score: Int = 0
+    /// Consecutive correct answers in the current session.
     @State private var streak: Int = 0
+    /// Submitted questions counted for accuracy.
     @State private var totalAttempted: Int = 0
 
+    /// Countdown value in seconds for timed modes.
     @State private var timeRemaining: Int = 0
+    /// Whether the countdown is actively running.
     @State private var timerActive: Bool = false
+    /// Whether a timed round has ended and the summary view should be shown.
     @State private var timerEnded: Bool = false
     @State private var gameTimer: Timer? = nil
+    /// Score captured at the moment a timed round ends.
     @State private var finalScore: Int = 0
+    /// Accuracy captured at the moment a timed round ends.
     @State private var finalAccuracy: Double = 0
 
+    /// Percentage of submitted questions answered correctly.
     var accuracy: Double {
         guard totalAttempted > 0 else { return 0 }
         return Double(score) / Double(totalAttempted) * 100
     }
 
+    /// The answer text shown in the input capsule.
     var answerDisplay: String {
         guard !inputDigits.isEmpty else { return "?" }
         return (isNegative ? "-" : "") + inputDigits
     }
 
+    /// Prevents keypad input before a timed round starts or while it is paused.
     var inputBlocked: Bool { selectedTimerMode != .untimed && !timerActive }
 
     var body: some View {
@@ -329,27 +356,35 @@ struct ArithmeticView: View {
 
     // MARK: - Input Actions
 
+    /// Appends a keypad digit to the current input if input is allowed.
     func appendDigit(_ d: String) {
         guard !inputBlocked, !showingAnswer, inputDigits.count < 7 else { return }
         inputDigits += d
     }
 
+    /// Removes the last typed digit or decimal separator.
     func backspace() {
         guard !inputBlocked, !showingAnswer, !inputDigits.isEmpty else { return }
         inputDigits.removeLast()
     }
 
+    /// Toggles the sign for the currently typed value.
     func pressMinus() {
         guard !inputBlocked, !showingAnswer else { return }
         isNegative.toggle()
     }
 
+    /// Appends a comma decimal separator, inserting a leading zero when needed.
     func appendComma() {
         guard !inputBlocked, !showingAnswer, !inputDigits.contains(",") else { return }
         if inputDigits.isEmpty { inputDigits = "0" }
         inputDigits += ","
     }
 
+    /// Validates the current input against the displayed question.
+    ///
+    /// Correct answers update score/streak and advance after a short pause.
+    /// The first wrong answer allows another try; the second reveals the answer.
     func submitAnswer() {
         if showingAnswer {
             showingAnswer = false
@@ -395,12 +430,14 @@ struct ArithmeticView: View {
 
     // MARK: - Question Generation
 
+    /// Initializes timer state and prepares the first question when the view appears.
     func setupGame() {
         if let secs = selectedTimerMode.seconds { timeRemaining = secs }
         refillQueue()
         nextQuestion()
     }
 
+    /// Advances to the next buffered question, refilling the queue before it gets low.
     func nextQuestion() {
         if questionQueue.count < 5 { refillQueue() }
         currentQuestion = questionQueue.removeFirst()
@@ -409,10 +446,15 @@ struct ArithmeticView: View {
         wrongAttempts = 0
     }
 
+    /// Appends a batch of generated questions to the queue.
     func refillQueue() {
         for _ in 0..<10 { questionQueue.append(generateQuestion()) }
     }
 
+    /// Generates one question using the selected operation, difficulty, and decimal setting.
+    ///
+    /// Mixed mode resolves to a concrete operation before the `Question` is built.
+    /// Decimal questions are sampled only for non-Expert difficulties.
     func generateQuestion() -> Question {
         let op: Operation
         if selectedOperation == .mixed {
@@ -426,6 +468,7 @@ struct ArithmeticView: View {
         return makeQuestion(op: op)
     }
 
+    /// Generates an integer question for a concrete operation.
     func makeQuestion(op: Operation) -> Question {
         switch op {
         case .addition:
@@ -444,6 +487,7 @@ struct ArithmeticView: View {
         }
     }
 
+    /// Returns the integer operand range for addition/subtraction at the selected difficulty.
     func addSubRange() -> (Int, Int) {
         switch selectedDifficulty {
         case .easy:   return (Int.random(in: 1...20),      Int.random(in: 1...20))
@@ -453,6 +497,7 @@ struct ArithmeticView: View {
         }
     }
 
+    /// Returns the integer operand range for multiplication at the selected difficulty.
     func mulRange() -> (Int, Int) {
         switch selectedDifficulty {
         case .easy:   return (Int.random(in: 2...10),    Int.random(in: 2...10))
@@ -462,6 +507,10 @@ struct ArithmeticView: View {
         }
     }
 
+    /// Generates a division question with a whole-number answer.
+    ///
+    /// The left-hand side is built as `answer * divisor`, so the displayed
+    /// division is always clean.
     func makeDivision() -> Question {
         switch selectedDifficulty {
         case .easy:
@@ -481,6 +530,10 @@ struct ArithmeticView: View {
 
     // MARK: - Decimal Helpers
 
+    /// Checks whether a value can be displayed cleanly within a decimal-place limit.
+    ///
+    /// Decimal generators use this to avoid awkward floating-point tails or
+    /// answers that would be painful to type on the keypad.
     func isClean(_ v: Double, maxDP: Int) -> Bool {
         let m = pow(10.0, Double(maxDP))
         let rounded = (abs(v) * m).rounded() / m
@@ -489,6 +542,10 @@ struct ArithmeticView: View {
 
     // MARK: - Decimal Question Dispatch
 
+    /// Dispatches decimal question generation for a concrete operation.
+    ///
+    /// Easy and Medium use friendlier decimal pools. Hard uses broader pools and
+    /// additional sampling attempts. Expert disables decimal mode entirely.
     func makeDecimalQuestion(op: Operation) -> Question {
         let resolvedOp: Operation = op == .mixed
             ? [Operation.addition, .subtraction, .multiplication, .division].randomElement()!
@@ -511,6 +568,10 @@ struct ArithmeticView: View {
 
     // MARK: - Easy / Medium Decimal Generators
 
+    /// Generates an Easy or Medium decimal addition/subtraction question.
+    ///
+    /// Easy uses tenths and keeps subtraction non-negative. Medium introduces
+    /// selected hundredths while still avoiding negative subtraction answers.
     func makeDecimalAddSub(isAddition: Bool, easy: Bool) -> Question {
         let tenths = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
         if easy {
@@ -539,6 +600,7 @@ struct ArithmeticView: View {
         }
     }
 
+    /// Generates an Easy or Medium decimal multiplication question using friendly factors.
     func makeDecimalMul(easy: Bool) -> Question {
         if easy {
             let a = Double(Int.random(in: 2...12))
@@ -553,6 +615,10 @@ struct ArithmeticView: View {
         }
     }
 
+    /// Generates an Easy or Medium decimal division question.
+    ///
+    /// Questions are constructed from a known answer and divisor, then checked
+    /// so the displayed left-hand side stays clean.
     func makeDecimalDiv(easy: Bool) -> Question {
         if easy {
             let answer = Double(Int.random(in: 2...12))
@@ -571,6 +637,9 @@ struct ArithmeticView: View {
 
     // MARK: - Hard Decimal Generators
 
+    /// Generates a Hard decimal addition/subtraction question.
+    ///
+    /// Unlike easier subtraction, Hard subtraction may produce a negative answer.
     func makeHardDecimalAddSub(isAddition: Bool) -> Question {
         let tenths    = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
         let hundredths = [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95]
@@ -588,6 +657,10 @@ struct ArithmeticView: View {
         }
     }
 
+    /// Generates a Hard decimal multiplication question.
+    ///
+    /// Samples several friendly decimal patterns and falls back to integer
+    /// multiplication if none produce a clean answer quickly.
     func makeHardDecimalMul() -> Question {
         for _ in 0..<10 {
             switch Int.random(in: 0...2) {
@@ -621,6 +694,10 @@ struct ArithmeticView: View {
         return Question(lhs: a, rhs: b, op: .multiplication, answer: a * b)
     }
 
+    /// Generates a Hard decimal division question from a clean answer/divisor pair.
+    ///
+    /// Falls back to integer division if sampling does not quickly find a clean
+    /// two-decimal left-hand side and answer.
     func makeHardDecimalDiv() -> Question {
         for _ in 0..<10 {
             let wholePart = Int.random(in: 1...30)
@@ -637,8 +714,10 @@ struct ArithmeticView: View {
 
     // MARK: - Timer
 
+    /// Starts or pauses the active timed round.
     func toggleTimer() { timerActive ? pauseTimer() : startTimer() }
 
+    /// Starts the countdown timer for timed modes.
     func startTimer() {
         timerActive = true
         gameTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
@@ -646,12 +725,14 @@ struct ArithmeticView: View {
         }
     }
 
+    /// Pauses the countdown and releases the scheduled timer.
     func pauseTimer() {
         timerActive = false
         gameTimer?.invalidate()
         gameTimer = nil
     }
 
+    /// Finishes a timed round and captures the summary stats before resetting live counters.
     func endTimer() {
         finalScore = score
         finalAccuracy = accuracy
@@ -660,10 +741,12 @@ struct ArithmeticView: View {
         score = 0; streak = 0; totalAttempted = 0
     }
 
+    /// Formats seconds as `m:ss` for the timer label.
     func timeString(_ s: Int) -> String { String(format: "%d:%02d", s / 60, s % 60) }
 
     // MARK: - Reset
 
+    /// Resets score, timer, feedback, input, and question state for a fresh round.
     func resetGame() {
         pauseTimer()
         score = 0; streak = 0; totalAttempted = 0
@@ -678,6 +761,7 @@ struct ArithmeticView: View {
 
 // MARK: - Button Styles
 
+/// Small glass pill style used by compact header controls.
 struct GlassSmallButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -690,6 +774,7 @@ struct GlassSmallButtonStyle: ButtonStyle {
     }
 }
 
+/// Larger glass button style used by timed-round summary actions.
 struct GlassPlayAgainButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label

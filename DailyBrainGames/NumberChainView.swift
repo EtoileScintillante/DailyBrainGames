@@ -10,32 +10,53 @@ import Foundation
 
 // MARK: - Types
 
+/// Difficulty presets for Number Chain.
+///
+/// Difficulty changes the number of operations, available operation types,
+/// possible step values, and accepted final-answer range.
 enum NCDifficulty: String, CaseIterable, Identifiable {
     case easy = "Easy", medium = "Medium", hard = "Hard"
     var id: String { rawValue }
 }
 
+/// A mathematical operation used in one Number Chain step.
 enum ChainOp: String, CaseIterable, Identifiable {
     case add = "+", sub = "−", mul = "×", div = "÷"
     var id: String { rawValue }
 }
 
+/// One operation/value pair in a Number Chain puzzle.
+///
+/// For example, `op == .mul` and `value == 3` represents `×3`.
 struct ChainStep {
     let op: ChainOp
     let value: Decimal
+
+    /// User-facing representation of the step, such as `+4` or `÷2`.
     var display: String { op.rawValue + ncFormat(value) }
 }
 
+/// A generated Number Chain puzzle.
+///
+/// In normal mode, the player sees the start value and all steps, then solves
+/// for `finalValue`. In missing-step mode, one entry in `steps` is hidden and
+/// `missingIndex` points to the hidden operation/value pair.
 struct NumberChainPuzzle {
     let start: Decimal
     let steps: [ChainStep]
     let missingIndex: Int?
     let finalValue: Decimal
+
+    /// Whether this puzzle asks for a hidden step instead of the final answer.
     var isMissingStep: Bool { missingIndex != nil }
 }
 
 // MARK: - Helpers
 
+/// Formats a decimal for puzzle display.
+///
+/// Values are rounded to two decimal places, trimmed with `%g`, and displayed
+/// with a comma decimal separator to match the keypad input.
 private func ncFormat(_ v: Decimal) -> String {
     let d = NSDecimalNumber(decimal: v).doubleValue
     let r = (d * 100).rounded() / 100
@@ -43,6 +64,10 @@ private func ncFormat(_ v: Decimal) -> String {
     return s.replacingOccurrences(of: ".", with: ",")
 }
 
+/// Checks whether a decimal can be represented cleanly with at most two digits after the decimal separator.
+///
+/// The generator uses this to avoid division chains that produce long repeating
+/// decimals, which would be frustrating to solve on the keypad.
 private func isClean2DP(_ d: Decimal) -> Bool {
     let scaled = d * 100
     let intPart = NSDecimalNumber(decimal: scaled).intValue
@@ -51,16 +76,25 @@ private func isClean2DP(_ d: Decimal) -> Bool {
 
 // MARK: - Generation
 
+/// Tunable puzzle generation parameters for a difficulty level.
 private struct NCParams {
+    /// Number of operations in the chain.
     let stepCount: Int
+    /// Inclusive range for the starting value.
     let startRange: ClosedRange<Int>
+    /// Operations that may appear in the generated chain.
     let opsPool: [ChainOp]
+    /// Candidate values for addition and subtraction steps.
     let addSubValues: [Decimal]
+    /// Candidate values for multiplication steps.
     let mulValues: [Decimal]
+    /// Candidate values for division steps.
     let divValues: [Decimal]
+    /// Allowed final-answer range after all steps have been applied.
     let finalRangeDouble: ClosedRange<Double>
 }
 
+/// Returns the generation rules for one difficulty preset.
 private func ncParams(_ d: NCDifficulty) -> NCParams {
     switch d {
     case .easy:
@@ -102,6 +136,17 @@ private func ncParams(_ d: NCDifficulty) -> NCParams {
     }
 }
 
+/// Generates a playable Number Chain puzzle.
+///
+/// The generator repeatedly samples a start value and operation chain until it
+/// finds one that satisfies the difficulty constraints: valid divisions, clean
+/// two-decimal intermediate values, a reasonable final range, and distinct step
+/// values. If no valid random puzzle is found, it returns a simple fallback.
+///
+/// - Parameters:
+///   - difficulty: Difficulty preset controlling operation count and value ranges.
+///   - missingStep: Whether one operation should be hidden from the player.
+/// - Returns: A puzzle ready to display.
 private func generateNCPuzzle(difficulty: NCDifficulty, missingStep: Bool) -> NumberChainPuzzle {
     let p = ncParams(difficulty)
     for _ in 0..<1000 {
@@ -179,42 +224,72 @@ private func generateNCPuzzle(difficulty: NCDifficulty, missingStep: Bool) -> Nu
 
 // MARK: - View
 
+/// Interactive Number Chain game screen.
+///
+/// The player either solves the final value of an operation chain or, in
+/// missing-step mode, identifies the hidden operation/value pair.
 struct NumberChainView: View {
+    /// Called by the custom back button to return to Home.
     let onBack: () -> Void
 
+    /// Persisted puzzle difficulty.
     @AppStorage("ncDifficulty") private var difficulty: NCDifficulty = .easy
     @AppStorage("selectedTheme") private var selectedTheme: Theme = .purple
+    /// Persisted mode flag that switches between final-answer and missing-step puzzles.
     @AppStorage("ncMissingStep") private var missingStepMode: Bool = false
+    /// Timer selection is intentionally session-local for this game screen.
     @State private var selectedTimerMode: TimerMode = .untimed
 
+    /// Current puzzle being displayed.
     @State private var puzzle: NumberChainPuzzle? = nil
+    /// Digits typed on the custom keypad, using a comma as the decimal separator.
     @State private var inputDigits: String = ""
+    /// Whether the currently typed numeric value should be treated as negative.
     @State private var isNegativeValue: Bool = false
+    /// Operation selected by the player in missing-step mode.
     @State private var selectedOp: ChainOp? = nil
 
+    /// Short response shown after submit, such as "Correct" or "Try again".
     @State private var feedback: String = ""
     @State private var feedbackColor: Color = .white
+    /// Number of wrong tries on the current puzzle. The second wrong try reveals the answer.
     @State private var wrongAttempts: Int = 0
+    /// True while the correct answer is being shown after repeated wrong attempts.
     @State private var showingAnswer: Bool = false
 
+    /// Correct answers in the current session.
     @State private var score: Int = 0
+    /// Consecutive correct answers in the current session.
     @State private var streak: Int = 0
+    /// Submitted puzzles counted for accuracy.
     @State private var totalAttempted: Int = 0
 
+    /// Countdown value in seconds for timed modes.
     @State private var timeRemaining: Int = 0
+    /// Whether the countdown is actively running.
     @State private var timerActive: Bool = false
+    /// Whether a timed round has ended and the summary view should be shown.
     @State private var timerEnded: Bool = false
     @State private var gameTimer: Timer? = nil
+    /// Score captured at the moment a timed round ends.
     @State private var finalScore: Int = 0
+    /// Accuracy captured at the moment a timed round ends.
     @State private var finalAccuracy: Double = 0
 
+    /// Percentage of submitted puzzles answered correctly.
     var accuracy: Double {
         guard totalAttempted > 0 else { return 0 }
         return Double(score) / Double(totalAttempted) * 100
     }
 
+    /// Prevents keypad input before a timed round starts or while it is paused.
     var inputBlocked: Bool { selectedTimerMode != .untimed && !timerActive }
 
+    /// The answer text shown in the input capsule.
+    ///
+    /// Normal mode displays only the typed number. Missing-step mode combines
+    /// the selected operation and typed number, using `?` placeholders until
+    /// each piece has been provided.
     var answerDisplay: String {
         guard let p = puzzle, p.isMissingStep else {
             // Normal mode: "?" until digits are entered; sign is invisible until then
@@ -569,21 +644,25 @@ struct NumberChainView: View {
 
     // MARK: - Input Actions
 
+    /// Appends a keypad digit to the current input if input is allowed.
     func appendDigit(_ d: String) {
         guard !inputBlocked, !showingAnswer, inputDigits.count < 7 else { return }
         inputDigits += d
     }
 
+    /// Removes the last typed digit or decimal separator.
     func backspace() {
         guard !inputBlocked, !showingAnswer, !inputDigits.isEmpty else { return }
         inputDigits.removeLast()
     }
 
+    /// Toggles the sign for the currently typed value.
     func toggleSign() {
         guard !inputBlocked, !showingAnswer else { return }
         isNegativeValue.toggle()
     }
 
+    /// Appends a comma decimal separator, inserting a leading zero when needed.
     func appendDecimal() {
         guard !inputBlocked, !showingAnswer, !inputDigits.contains(",") else { return }
         if inputDigits.isEmpty { inputDigits = "0" }
@@ -592,6 +671,11 @@ struct NumberChainView: View {
 
     // MARK: - Submit
 
+    /// Validates the current input against the puzzle.
+    ///
+    /// Normal puzzles compare the typed number with `finalValue`. Missing-step
+    /// puzzles compare both the selected operation and typed value with the
+    /// hidden `ChainStep`.
     func submitAnswer() {
         if showingAnswer {
             showingAnswer = false
@@ -623,6 +707,10 @@ struct NumberChainView: View {
         }
     }
 
+    /// Normalizes equivalent add/subtract answers that use a negative value.
+    ///
+    /// For missing-step puzzles, `+ -3` and `− 3` mean the same thing. This
+    /// conversion lets the player enter either form without being marked wrong.
     private func normalizeStep(_ op: ChainOp, _ value: Decimal) -> (ChainOp, Decimal) {
         guard value < 0 else { return (op, value) }
         switch op {
@@ -632,6 +720,7 @@ struct NumberChainView: View {
         }
     }
 
+    /// Records a correct answer, clears input, and advances after a short success pause.
     private func markCorrect() {
         score += 1; streak += 1; totalAttempted += 1
         wrongAttempts = 0
@@ -644,6 +733,10 @@ struct NumberChainView: View {
         }
     }
 
+    /// Records a wrong answer.
+    ///
+    /// The first wrong attempt lets the player try again. The second wrong
+    /// attempt counts the puzzle, breaks the streak, and reveals the answer.
     private func markWrong(correctAnswer: String) {
         wrongAttempts += 1
         clearInput()
@@ -660,6 +753,7 @@ struct NumberChainView: View {
         }
     }
 
+    /// Clears all user-entered answer state for the current puzzle.
     private func clearInput() {
         inputDigits = ""
         isNegativeValue = false
@@ -668,11 +762,13 @@ struct NumberChainView: View {
 
     // MARK: - Game Setup
 
+    /// Initializes timer state and loads the first puzzle when the view appears.
     func setupGame() {
         if let secs = selectedTimerMode.seconds { timeRemaining = secs }
         loadNextPuzzle()
     }
 
+    /// Generates and displays the next puzzle, resetting per-puzzle state.
     func loadNextPuzzle() {
         let p = generateNCPuzzle(difficulty: difficulty, missingStep: missingStepMode)
         withAnimation(.easeInOut(duration: 0.2)) { puzzle = p }
@@ -684,8 +780,10 @@ struct NumberChainView: View {
 
     // MARK: - Timer
 
+    /// Starts or pauses the active timed round.
     func toggleTimer() { timerActive ? pauseTimer() : startTimer() }
 
+    /// Starts the countdown timer for timed modes.
     func startTimer() {
         timerActive = true
         gameTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
@@ -693,12 +791,14 @@ struct NumberChainView: View {
         }
     }
 
+    /// Pauses the countdown and releases the scheduled timer.
     func pauseTimer() {
         timerActive = false
         gameTimer?.invalidate()
         gameTimer = nil
     }
 
+    /// Finishes a timed round and captures the summary stats before resetting live counters.
     func endTimer() {
         finalScore = score
         finalAccuracy = accuracy
@@ -707,10 +807,12 @@ struct NumberChainView: View {
         score = 0; streak = 0; totalAttempted = 0
     }
 
+    /// Formats seconds as `m:ss` for the timer label.
     func timeString(_ s: Int) -> String { String(format: "%d:%02d", s / 60, s % 60) }
 
     // MARK: - Reset
 
+    /// Resets score, timer, feedback, input, and puzzle state for a fresh round.
     func resetGame() {
         pauseTimer()
         score = 0; streak = 0; totalAttempted = 0

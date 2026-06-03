@@ -7,6 +7,10 @@
 
 import SwiftUI
 
+/// The app's starting screen.
+///
+/// `HomeView` does not own navigation itself. It reports the selected game route
+/// to `ContentView`, which keeps all games as direct siblings under Home.
 struct HomeView: View {
     let onSelect: (GameRoute) -> Void
     @AppStorage("selectedTheme") private var selectedTheme: Theme = .purple
@@ -88,6 +92,14 @@ struct HomeView: View {
         }
     }
 
+    /// Builds one tappable game card.
+    ///
+    /// - Parameters:
+    ///   - icon: SF Symbol shown at the leading edge of the card (https://developer.apple.com/sf-symbols/).
+    ///   - title: Main card label.
+    ///   - subtitle: Short description of the game mode.
+    ///   - route: Destination route sent to `onSelect` when tapped.
+    ///   - enabled: Whether the card can be tapped.
     @ViewBuilder
     func modeCard(
         icon: String,
