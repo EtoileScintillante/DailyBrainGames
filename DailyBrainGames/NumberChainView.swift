@@ -581,7 +581,7 @@ struct NumberChainView: View {
                 ncKeyButton(label: "⌫", disabled: inputBlocked || showingAnswer) {
                     backspace()
                 }
-                ncKeyButton(label: "→", isEnter: true, disabled: inputBlocked) {
+                ncKeyButton(label: "→", isEnter: true, disabled: inputBlocked || isBlockedByDivZero) {
                     submitAnswer()
                 }
             }
@@ -671,11 +671,19 @@ struct NumberChainView: View {
 
     // MARK: - Submit
 
+    /// True when the submit button should be disabled due to a ÷0 entry in missing-step mode.
+    var isBlockedByDivZero: Bool {
+        guard puzzle?.isMissingStep == true, selectedOp == .div, !inputDigits.isEmpty else { return false }
+        let raw = inputDigits.replacingOccurrences(of: ",", with: ".")
+        return Decimal(string: raw) == 0
+    }
+
     /// Validates the current input against the puzzle.
     ///
     /// Normal puzzles compare the typed number with `finalValue`. Missing-step
-    /// puzzles compare both the selected operation and typed value with the
-    /// hidden `ChainStep`.
+    /// puzzles execute the user's submitted step inside the chain and check
+    /// whether the final result matches `finalValue`, accepting any mathematically
+    /// equivalent step instead of requiring an exact op/value match.
     func submitAnswer() {
         if showingAnswer {
             showingAnswer = false
@@ -691,12 +699,28 @@ struct NumberChainView: View {
 
         if p.isMissingStep {
             guard let missingIdx = p.missingIndex, let userOp = selectedOp else { return }
-            let correct = p.steps[missingIdx]
-            let (normOp, normVal) = normalizeStep(userOp, userValue)
-            if normOp == correct.op && normVal == correct.value {
+
+            // Compute the value immediately before the missing step
+            var valueBefore = p.start
+            for i in 0..<missingIdx {
+                guard let next = applyStep(valueBefore, op: p.steps[i].op, stepVal: p.steps[i].value) else { return }
+                valueBefore = next
+            }
+
+            // Apply the user's submitted step (also guards ÷0)
+            guard let intermediate = applyStep(valueBefore, op: userOp, stepVal: userValue) else { return }
+
+            // Run remaining steps after the missing one
+            var finalResult = intermediate
+            for i in (missingIdx + 1)..<p.steps.count {
+                guard let next = applyStep(finalResult, op: p.steps[i].op, stepVal: p.steps[i].value) else { return }
+                finalResult = next
+            }
+
+            if finalResult == p.finalValue {
                 markCorrect()
             } else {
-                markWrong(correctAnswer: "Step: \(correct.display)")
+                markWrong(correctAnswer: "Step: \(p.steps[missingIdx].display)")
             }
         } else {
             if userValue == p.finalValue {
@@ -707,16 +731,15 @@ struct NumberChainView: View {
         }
     }
 
-    /// Normalizes equivalent add/subtract answers that use a negative value.
-    ///
-    /// For missing-step puzzles, `+ -3` and `− 3` mean the same thing. This
-    /// conversion lets the player enter either form without being marked wrong.
-    private func normalizeStep(_ op: ChainOp, _ value: Decimal) -> (ChainOp, Decimal) {
-        guard value < 0 else { return (op, value) }
+    /// Applies one chain operation to a value, returning `nil` on division by zero.
+    private func applyStep(_ value: Decimal, op: ChainOp, stepVal: Decimal) -> Decimal? {
         switch op {
-        case .add: return (.sub, -value)
-        case .sub: return (.add, -value)
-        default:   return (op, value)
+        case .add: return value + stepVal
+        case .sub: return value - stepVal
+        case .mul: return value * stepVal
+        case .div:
+            guard stepVal != 0 else { return nil }
+            return value / stepVal
         }
     }
 
