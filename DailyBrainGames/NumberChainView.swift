@@ -157,6 +157,9 @@ private func generateNCPuzzle(difficulty: NCDifficulty, missingStep: Bool) -> Nu
             guard Decimal(intVal) == current else { continue }
         }
 
+        // All step values must be distinct (avoids e.g. ÷5 ×5 ÷5 ×5)
+        guard Set(steps.map(\.value)).count == steps.count else { continue }
+
         let missingIndex: Int? = missingStep ? Int.random(in: 0..<p.stepCount) : nil
         return NumberChainPuzzle(start: Decimal(startInt), steps: steps, missingIndex: missingIndex, finalValue: current)
     }
