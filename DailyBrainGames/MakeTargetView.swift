@@ -187,6 +187,8 @@ struct MakeTargetView: View {
                     score = 0; streak = 0; totalAttempted = 0; firstTryCorrect = 0
                     generateNewPuzzle()
                 }
+                .disabled(timerActive)
+                .opacity(timerActive ? 0.4 : 1)
                 pickerMenu(title: selectedTimerMode.rawValue, options: TimerMode.allCases) { mode in
                     selectedTimerMode = mode
                     pauseTimer()

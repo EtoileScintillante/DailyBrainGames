@@ -125,6 +125,8 @@ struct ArithmeticView: View {
                     if diff == .expert { decimalsEnabled = false }
                     resetGame()
                 }
+                .disabled(timerActive)
+                .opacity(timerActive ? 0.4 : 1)
                 pickerMenu(title: selectedTimerMode.rawValue, options: TimerMode.allCases) { mode in
                     selectedTimerMode = mode; resetGame()
                 }

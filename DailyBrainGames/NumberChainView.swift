@@ -346,6 +346,8 @@ struct NumberChainView: View {
                 pickerMenu(title: difficulty.rawValue, options: NCDifficulty.allCases) { d in
                     difficulty = d; resetGame()
                 }
+                .disabled(timerActive)
+                .opacity(timerActive ? 0.4 : 1)
                 pickerMenu(title: selectedTimerMode.rawValue, options: TimerMode.allCases) { mode in
                     selectedTimerMode = mode; resetGame()
                 }
