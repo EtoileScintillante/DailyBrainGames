@@ -351,6 +351,8 @@ struct NumberChainView: View {
                 pickerMenu(title: selectedTimerMode.rawValue, options: TimerMode.allCases) { mode in
                     selectedTimerMode = mode; resetGame()
                 }
+                .disabled(timerActive)
+                .opacity(timerActive ? 0.4 : 1)
             }
             .padding(.horizontal, 16)
 

@@ -196,6 +196,8 @@ struct MakeTargetView: View {
                     if let secs = mode.seconds { timeRemaining = secs }
                     score = 0; streak = 0; totalAttempted = 0; firstTryCorrect = 0
                 }
+                .disabled(timerActive)
+                .opacity(timerActive ? 0.4 : 1)
             }
             .padding(.bottom, 8)
 
