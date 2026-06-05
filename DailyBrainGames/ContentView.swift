@@ -15,6 +15,7 @@ import UIKit
 enum GameRoute: Hashable {
     case arithmetic
     case makeTarget
+    case marketMath
     case numberChain
     case sequenceMemory
 }
@@ -56,6 +57,10 @@ private struct GameDestinationView: View {
                     }
                 case .makeTarget:
                     MakeTargetView {
+                        dismiss()
+                    }
+                case .marketMath:
+                    MarketMathView {
                         dismiss()
                     }
                 case .numberChain:

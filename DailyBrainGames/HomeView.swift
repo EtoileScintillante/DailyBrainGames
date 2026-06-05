@@ -46,6 +46,14 @@ struct HomeView: View {
                 )
 
                 modeCard(
+                    icon: "chart.line.uptrend.xyaxis",
+                    title: "Market Math",
+                    subtitle: "Value baskets and trade before the market moves",
+                    route: .marketMath,
+                    enabled: true
+                )
+
+                modeCard(
                     icon: "link",
                     title: "Number Chain",
                     subtitle: "Follow a chain of operations to find the answer or missing step",
