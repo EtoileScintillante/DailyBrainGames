@@ -120,6 +120,8 @@ struct ArithmeticView: View {
                 pickerMenu(title: selectedOperation.rawValue, options: Operation.allCases) { op in
                     selectedOperation = op; resetGame()
                 }
+                .disabled(timerActive)
+                .opacity(timerActive ? 0.4 : 1)
                 pickerMenu(title: selectedDifficulty.rawValue, options: Difficulty.allCases) { diff in
                     selectedDifficulty = diff
                     if diff == .expert { decimalsEnabled = false }
